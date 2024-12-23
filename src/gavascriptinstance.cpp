@@ -7,6 +7,13 @@ void GavaScriptInstance::_bind_methods() {
 }
 
 GavaScriptInstance::GavaScriptInstance() {
+    ClassBindData data;
+    runtime = JS_NewRuntime();
+    context = JS_NewContext(runtime);
+    const char* jscode = "let a = 5; let b = 10; a + b;";
+    auto result = JS_Eval(context, jscode, strlen(jscode), "<quickjs>", JS_EVAL_TYPE_GLOBAL);
+    int int_result = JS_VALUE_GET_INT(result);
+    UtilityFunctions::print(int_result);
 }
 
 GavaScriptInstance::~GavaScriptInstance() {
@@ -20,10 +27,10 @@ void GavaScriptInstance::_process(double delta) {
 
 void GavaScriptInstance::_ready() {
     UtilityFunctions::print("hello world");
-    ClassBindData data;
-    runtime = JS_NewRuntime();
-    context = JS_NewContext(runtime);
-    const char* jscode = "let a = 5; let b = 10; a + b;";
-    JS_Eval(context, jscode, strlen(jscode), "<quickjs>", JS_EVAL_TYPE_GLOBAL);
-    UtilityFunctions::print(jscode);
+    // ClassBindData data;
+    // runtime = JS_NewRuntime();
+    // context = JS_NewContext(runtime);
+    // const char* jscode = "let a = 5; let b = 10; a + b;";
+    // JS_Eval(context, jscode, strlen(jscode), "<quickjs>", JS_EVAL_TYPE_GLOBAL);
+    // UtilityFunctions::print(jscode);
 }

@@ -13,14 +13,14 @@ namespace godot {
         JSRuntime *runtime;
         JSContext *context;
         struct ClassBindData {
-		JSClassID class_id;
-		CharString class_name;
-		JSValue prototype;
-		JSValue constructor;
-		JSClassDef jsclass;
-		const ClassDB::ClassInfo *gdclass;
-		const ClassBindData *base_class;
-	};
+            JSClassID class_id;
+            CharString class_name;
+            JSValue prototype;
+            JSValue constructor;
+            JSClassDef jsclass;
+            const ClassDB::ClassInfo *gdclass;
+            const ClassBindData *base_class;
+	    };
     public:
         GavaScriptInstance();
         ~GavaScriptInstance();
