@@ -4,6 +4,8 @@ import sys
 
 env = SConscript("godot-cpp/SConstruct")
 
+CacheDir('cache')
+
 # For reference:
 # - CCFLAGS are compilation flags shared between C and C++
 # - CFLAGS are for C-specific compilation flags

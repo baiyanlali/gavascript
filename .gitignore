@@ -12,3 +12,4 @@
 /site
 venv
 /demo/.godot
+cache/
