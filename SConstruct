@@ -16,6 +16,33 @@ env = SConscript("godot-cpp/SConstruct")
 env.Append(CPPPATH=["src/"])
 sources = Glob("src/*.cpp")
 
+quickjs_version = open("thirdparty/quickjs/VERSION", "r").read().split("\n")[0]
+cppdefines = [
+    f'CONFIG_VERSION="{quickjs_version}"',
+    'CONFIG_BIGNUM=y',
+]
+
+env.Append(CPPDEFINES=cppdefines)
+
+env.Append(CPPPATH=["thirdparty/quickjs/"])
+
+sources.extend(
+    [
+        'thirdparty/quickjs/quickjs.c',
+        'thirdparty/quickjs/cutils.c',
+        'thirdparty/quickjs/libbf.c',
+        'thirdparty/quickjs/libregexp.c',
+        'thirdparty/quickjs/libunicode.c'
+    ]
+)
+
+# env.add_source_files(env.modules_sources, "thirdparty/quickjs/*.c")
+
+if env["platform"] == "windows":
+    if env["use_mingw"]:
+        env.Append(LIBS=["pthread"])
+
+
 if env["platform"] == "macos":
     library = env.SharedLibrary(
         "demo/bin/libgavascript.{}.{}.framework/libgavascript.{}.{}".format(

@@ -1,8 +1,8 @@
 /*
  * QuickJS Javascript Engine
  *
- * Copyright (c) 2017-2021 Fabrice Bellard
- * Copyright (c) 2017-2021 Charlie Gordon
+ * Copyright (c) 2017-2020 Fabrice Bellard
+ * Copyright (c) 2017-2020 Charlie Gordon
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,16 +32,24 @@
 extern "C" {
 #endif
 
+#ifdef _MSC_VER
+#define INLINE_FUNC __forceinline
+#else
+#define INLINE_FUNC inline
+#endif
+
 #if defined(__GNUC__) || defined(__clang__)
 #define js_likely(x)          __builtin_expect(!!(x), 1)
 #define js_unlikely(x)        __builtin_expect(!!(x), 0)
 #define js_force_inline       inline __attribute__((always_inline))
 #define __js_printf_like(f, a)   __attribute__((format(printf, f, a)))
+#define __js_unused __attribute((unused))
 #else
 #define js_likely(x)     (x)
 #define js_unlikely(x)   (x)
-#define js_force_inline  inline
+#define js_force_inline  INLINE_FUNC
 #define __js_printf_like(a, b)
+#define __js_unused
 #endif
 
 #define JS_BOOL int
@@ -215,8 +223,26 @@ typedef struct JSValue {
 #define JS_VALUE_GET_FLOAT64(v) ((v).u.float64)
 #define JS_VALUE_GET_PTR(v) ((v).u.ptr)
 
-#define JS_MKVAL(tag, val) (JSValue){ (JSValueUnion){ .int32 = val }, tag }
-#define JS_MKPTR(tag, p) (JSValue){ (JSValueUnion){ .ptr = p }, tag }
+JSValue INLINE_FUNC _JS_MKVAL_INT32(int64_t tag, int32_t val) {
+	JSValue v;
+
+	v.u.int32 = val;
+	v.tag = tag;
+
+	return v;
+}
+
+JSValue INLINE_FUNC _JS_MKPTR(int64_t tag, void* ptr) {
+	JSValue v;
+
+	v.u.ptr = ptr;
+	v.tag = tag;
+
+	return v;
+}
+
+#define JS_MKVAL(tag, val) _JS_MKVAL_INT32(tag, val)
+#define JS_MKPTR(tag, p) _JS_MKPTR(tag, p)
 
 #define JS_TAG_IS_FLOAT64(tag) ((unsigned)(tag) == JS_TAG_FLOAT64)
 
@@ -307,9 +333,6 @@ static inline JS_BOOL JS_VALUE_IS_NAN(JSValue v)
 #define JS_EVAL_FLAG_COMPILE_ONLY (1 << 5)
 /* don't include the stack frames before this eval in the Error() backtraces */
 #define JS_EVAL_FLAG_BACKTRACE_BARRIER (1 << 6)
-/* allow top-level await in normal script. JS_Eval() returns a
-   promise. Only allowed with JS_EVAL_TYPE_GLOBAL */
-#define JS_EVAL_FLAG_ASYNC (1 << 7)
 
 typedef JSValue JSCFunction(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 typedef JSValue JSCFunctionMagic(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic);
@@ -336,11 +359,7 @@ JSRuntime *JS_NewRuntime(void);
 void JS_SetRuntimeInfo(JSRuntime *rt, const char *info);
 void JS_SetMemoryLimit(JSRuntime *rt, size_t limit);
 void JS_SetGCThreshold(JSRuntime *rt, size_t gc_threshold);
-/* use 0 to disable maximum stack size check */
 void JS_SetMaxStackSize(JSRuntime *rt, size_t stack_size);
-/* should be called when changing thread to update the stack top value
-   used to check stack overflow. */
-void JS_UpdateStackTop(JSRuntime *rt);
 JSRuntime *JS_NewRuntime2(const JSMallocFunctions *mf, void *opaque);
 void JS_FreeRuntime(JSRuntime *rt);
 void *JS_GetRuntimeOpaque(JSRuntime *rt);
@@ -499,10 +518,7 @@ typedef struct JSClassDef {
     JSClassExoticMethods *exotic;
 } JSClassDef;
 
-#define JS_INVALID_CLASS_ID 0
 JSClassID JS_NewClassID(JSClassID *pclass_id);
-/* Returns the class ID if `v` is an object, otherwise returns JS_INVALID_CLASS_ID. */
-JSClassID JS_GetClassID(JSValue v);
 int JS_NewClass(JSRuntime *rt, JSClassID class_id, const JSClassDef *class_def);
 int JS_IsRegisteredClass(JSRuntime *rt, JSClassID class_id);
 
@@ -550,21 +566,23 @@ JSValue JS_NewBigUint64(JSContext *ctx, uint64_t v);
 
 static js_force_inline JSValue JS_NewFloat64(JSContext *ctx, double d)
 {
+    JSValue v;
     int32_t val;
     union {
         double d;
         uint64_t u;
     } u, t;
-    if (d >= INT32_MIN && d <= INT32_MAX) {
-        u.d = d;
-        val = (int32_t)d;
-        t.d = val;
-        /* -0 cannot be represented as integer, so we compare the bit
-           representation */
-        if (u.u == t.u)
-            return JS_MKVAL(JS_TAG_INT, val);
+    u.d = d;
+    val = (int32_t)d;
+    t.d = val;
+    /* -0 cannot be represented as integer, so we compare the bit
+        representation */
+    if (u.u == t.u) {
+        v = JS_MKVAL(JS_TAG_INT, val);
+    } else {
+        v = __JS_NewFloat64(ctx, d);
     }
-    return __JS_NewFloat64(ctx, d);
+    return v;
 }
 
 static inline JS_BOOL JS_IsNumber(JSValueConst v)
@@ -633,9 +651,7 @@ static inline JS_BOOL JS_IsObject(JSValueConst v)
 
 JSValue JS_Throw(JSContext *ctx, JSValue obj);
 JSValue JS_GetException(JSContext *ctx);
-JS_BOOL JS_HasException(JSContext *ctx);
 JS_BOOL JS_IsError(JSContext *ctx, JSValueConst val);
-void JS_SetUncatchableError(JSContext *ctx, JSValueConst val, JS_BOOL flag);
 void JS_ResetUncatchableError(JSContext *ctx);
 JSValue JS_NewError(JSContext *ctx);
 JSValue __js_printf_like(2, 3) JS_ThrowSyntaxError(JSContext *ctx, const char *fmt, ...);
@@ -672,7 +688,7 @@ static inline JSValue JS_DupValue(JSContext *ctx, JSValueConst v)
         JSRefCountHeader *p = (JSRefCountHeader *)JS_VALUE_GET_PTR(v);
         p->ref_count++;
     }
-    return (JSValue)v;
+    return v;
 }
 
 static inline JSValue JS_DupValueRT(JSRuntime *rt, JSValueConst v)
@@ -681,12 +697,8 @@ static inline JSValue JS_DupValueRT(JSRuntime *rt, JSValueConst v)
         JSRefCountHeader *p = (JSRefCountHeader *)JS_VALUE_GET_PTR(v);
         p->ref_count++;
     }
-    return (JSValue)v;
+    return v;
 }
-
-JS_BOOL JS_StrictEq(JSContext *ctx, JSValueConst op1, JSValueConst op2);
-JS_BOOL JS_SameValue(JSContext *ctx, JSValueConst op1, JSValueConst op2);
-JS_BOOL JS_SameValueZero(JSContext *ctx, JSValueConst op1, JSValueConst op2);
 
 int JS_ToBool(JSContext *ctx, JSValueConst val); /* return -1 for JS_EXCEPTION */
 int JS_ToInt32(JSContext *ctx, int32_t *pres, JSValueConst val);
@@ -730,7 +742,12 @@ JS_BOOL JS_SetConstructorBit(JSContext *ctx, JSValueConst func_obj, JS_BOOL val)
 JSValue JS_NewArray(JSContext *ctx);
 int JS_IsArray(JSContext *ctx, JSValueConst val);
 
-JSValue JS_NewDate(JSContext *ctx, double epoch_ms);
+    JSValue js_function_toString(JSContext *ctx, JSValueConst this_val,
+                                           int argc, JSValueConst *argv);
+static js_force_inline JSValue JS_FunctionToString(JSContext *ctx, JSValueConst this_val)
+    {
+        return js_function_toString(ctx, this_val, 0, NULL);
+    }
 
 JSValue JS_GetPropertyInternal(JSContext *ctx, JSValueConst obj,
                                JSAtom prop, JSValueConst receiver,
@@ -745,13 +762,13 @@ JSValue JS_GetPropertyStr(JSContext *ctx, JSValueConst this_obj,
 JSValue JS_GetPropertyUint32(JSContext *ctx, JSValueConst this_obj,
                              uint32_t idx);
 
-int JS_SetPropertyInternal(JSContext *ctx, JSValueConst obj,
-                           JSAtom prop, JSValue val, JSValueConst this_obj,
+int JS_SetPropertyInternal(JSContext *ctx, JSValueConst this_obj,
+                           JSAtom prop, JSValue val,
                            int flags);
 static inline int JS_SetProperty(JSContext *ctx, JSValueConst this_obj,
                                  JSAtom prop, JSValue val)
 {
-    return JS_SetPropertyInternal(ctx, this_obj, prop, val, this_obj, JS_PROP_THROW);
+    return JS_SetPropertyInternal(ctx, this_obj, prop, val, JS_PROP_THROW);
 }
 int JS_SetPropertyUint32(JSContext *ctx, JSValueConst this_obj,
                          uint32_t idx, JSValue val);
@@ -792,10 +809,7 @@ JS_BOOL JS_DetectModule(const char *input, size_t input_len);
 /* 'input' must be zero terminated i.e. input[input_len] = '\0'. */
 JSValue JS_Eval(JSContext *ctx, const char *input, size_t input_len,
                 const char *filename, int eval_flags);
-/* same as JS_Eval() but with an explicit 'this_obj' parameter */
-JSValue JS_EvalThis(JSContext *ctx, JSValueConst this_obj,
-                    const char *input, size_t input_len,
-                    const char *filename, int eval_flags);
+JSValue JS_EvalFunction(JSContext *ctx, JSValue fun_obj);
 JSValue JS_GetGlobalObject(JSContext *ctx);
 int JS_IsInstanceOf(JSContext *ctx, JSValueConst val, JSValueConst obj);
 int JS_DefineProperty(JSContext *ctx, JSValueConst this_obj,
@@ -830,23 +844,6 @@ JSValue JS_NewArrayBuffer(JSContext *ctx, uint8_t *buf, size_t len,
 JSValue JS_NewArrayBufferCopy(JSContext *ctx, const uint8_t *buf, size_t len);
 void JS_DetachArrayBuffer(JSContext *ctx, JSValueConst obj);
 uint8_t *JS_GetArrayBuffer(JSContext *ctx, size_t *psize, JSValueConst obj);
-
-typedef enum JSTypedArrayEnum {
-    JS_TYPED_ARRAY_UINT8C = 0,
-    JS_TYPED_ARRAY_INT8,
-    JS_TYPED_ARRAY_UINT8,
-    JS_TYPED_ARRAY_INT16,
-    JS_TYPED_ARRAY_UINT16,
-    JS_TYPED_ARRAY_INT32,
-    JS_TYPED_ARRAY_UINT32,
-    JS_TYPED_ARRAY_BIG_INT64,
-    JS_TYPED_ARRAY_BIG_UINT64,
-    JS_TYPED_ARRAY_FLOAT32,
-    JS_TYPED_ARRAY_FLOAT64,
-} JSTypedArrayEnum;
-
-JSValue JS_NewTypedArray(JSContext *ctx, int argc, JSValueConst *argv,
-                         JSTypedArrayEnum array_type);
 JSValue JS_GetTypedArrayBuffer(JSContext *ctx, JSValueConst obj,
                                size_t *pbyte_offset,
                                size_t *pbyte_length,
@@ -860,15 +857,7 @@ typedef struct {
 void JS_SetSharedArrayBufferFunctions(JSRuntime *rt,
                                       const JSSharedArrayBufferFunctions *sf);
 
-typedef enum JSPromiseStateEnum {
-    JS_PROMISE_PENDING,
-    JS_PROMISE_FULFILLED,
-    JS_PROMISE_REJECTED,
-} JSPromiseStateEnum;
-
 JSValue JS_NewPromiseCapability(JSContext *ctx, JSValue *resolving_funcs);
-JSPromiseStateEnum JS_PromiseState(JSContext *ctx, JSValue promise);
-JSValue JS_PromiseResult(JSContext *ctx, JSValue promise);
 
 /* is_handled = TRUE means that the rejection is handled */
 typedef void JSHostPromiseRejectionTracker(JSContext *ctx, JSValueConst promise,
@@ -902,7 +891,6 @@ void JS_SetModuleLoaderFunc(JSRuntime *rt,
 /* return the import.meta object of a module */
 JSValue JS_GetImportMeta(JSContext *ctx, JSModuleDef *m);
 JSAtom JS_GetModuleName(JSContext *ctx, JSModuleDef *m);
-JSValue JS_GetModuleNamespace(JSContext *ctx, JSModuleDef *m);
 
 /* JS Job support */
 
@@ -930,9 +918,7 @@ uint8_t *JS_WriteObject2(JSContext *ctx, size_t *psize, JSValueConst obj,
 #define JS_READ_OBJ_REFERENCE (1 << 3) /* allow object references */
 JSValue JS_ReadObject(JSContext *ctx, const uint8_t *buf, size_t buf_len,
                       int flags);
-/* instantiate and evaluate a bytecode function. Only used when
-   reading a script or module with JS_ReadObject() */
-JSValue JS_EvalFunction(JSContext *ctx, JSValue fun_obj);
+
 /* load the dependencies of the module 'obj'. Useful when JS_ReadObject()
    returns a module. */
 int JS_ResolveModule(JSContext *ctx, JSValueConst obj);
@@ -940,8 +926,8 @@ int JS_ResolveModule(JSContext *ctx, JSValueConst obj);
 /* only exported for os.Worker() */
 JSAtom JS_GetScriptOrModuleName(JSContext *ctx, int n_stack_levels);
 /* only exported for os.Worker() */
-JSValue JS_LoadModule(JSContext *ctx, const char *basename,
-                      const char *filename);
+JSModuleDef *JS_RunModule(JSContext *ctx, const char *basename,
+                          const char *filename);
 
 /* C function definition */
 typedef enum JSCFunctionEnum {  /* XXX: should rename for namespace isolation */
@@ -1076,6 +1062,16 @@ int JS_SetModuleExport(JSContext *ctx, JSModuleDef *m, const char *export_name,
                        JSValue val);
 int JS_SetModuleExportList(JSContext *ctx, JSModuleDef *m,
                            const JSCFunctionListEntry *tab, int len);
+
+int JS_GetModuleExportEntriesCount(JSModuleDef *m);
+JSValue JS_GetModuleExportEntry(JSContext *ctx, JSModuleDef *m, int idx);
+JSAtom JS_GetModuleExportEntryName(JSContext *ctx, JSModuleDef *m, int idx);
+JSValue JS_GetStackFunction(JSContext *ctx, int back_level);
+JS_BOOL JS_IsPureCFunction(JSContext *ctx, JSValue val);
+const JSMallocState *JS_GetMollocState(JSRuntime *rt);
+int JS_GetRefCount(JSValue val);
+JS_BOOL JS_IsArrayBuffer(JSValueConst val);
+JS_BOOL JS_IsDataView(JSValueConst val);
 
 #undef js_unlikely
 #undef js_force_inline
