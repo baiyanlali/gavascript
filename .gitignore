@@ -1,0 +1,14 @@
+*.o
+*.obj
+*.lib
+*.d
+*.pyc
+*.bc
+*.os
+*.gen.cpp
+*.gen.json
+.vscode
+.idea
+/site
+venv
+/demo/.godot
