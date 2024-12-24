@@ -27,6 +27,21 @@ namespace godot {
 
         void _process(double delta) override;
         void _ready() override;
+        void run_script(String script);
+
+        enum {
+		__JS_ATOM_NULL = JS_ATOM_NULL,
+        #if !(defined(EMSCRIPTEN) || defined(_MSC_VER))
+        #define CONFIG_ATOMICS
+        #endif
+        #define DEF(name, str) JS_ATOM_##name,
+        #include "../thirdparty/quickjs/quickjs-atom.h"
+        #undef DEF
+        #ifdef CONFIG_ATOMICS
+        #undef CONFIG_ATOMICS
+        #endif
+                JS_ATOM_END, 
+        };
     };
 }
 
