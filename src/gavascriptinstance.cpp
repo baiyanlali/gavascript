@@ -3,7 +3,6 @@
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <godot_cpp/core/method_bind.hpp>
 #include <godot_cpp/core/defs.hpp>
-#include <godot_cpp/templates/hash_set.hpp>
 
 using namespace godot;
 
@@ -16,7 +15,7 @@ _FORCE_INLINE_ static String js_to_string(JSContext *ctx, const JSValueConst &p_
     return ret;
 }
 
-int get_js_array_length(JSContext *ctx, JSValue p_val) {
+int GavaScriptInstance::get_js_array_length(JSContext *ctx, JSValue p_val) {
 	if (!JS_IsArray(ctx, p_val))
 		return -1;
 	JSValue ret = JS_GetProperty(ctx, p_val, GavaScriptInstance::JS_ATOM_length);
@@ -26,7 +25,7 @@ int get_js_array_length(JSContext *ctx, JSValue p_val) {
 	return length;
 }
 
-void get_own_property_names(JSContext *ctx, JSValue p_object, HashSet<String> *r_list) {
+void GavaScriptInstance::get_own_property_names(JSContext *ctx, JSValue p_object, HashSet<String> *r_list) {
 	ERR_FAIL_COND(!JS_IsObject(p_object));
 	JSPropertyEnum *props = NULL;
 	uint32_t tab_atom_count;
@@ -41,7 +40,7 @@ void get_own_property_names(JSContext *ctx, JSValue p_object, HashSet<String> *r
 	js_free_rt(JS_GetRuntime(ctx), props);
 }
 
-Dictionary js_to_dictionary(JSContext *ctx, const JSValue &p_val, List<void *> &stack) {
+Dictionary GavaScriptInstance::js_to_dictionary(JSContext *ctx, const JSValue &p_val, List<void *> &stack) {
 	Dictionary dict;
 	HashSet<String> keys;
 	get_own_property_names(ctx, p_val, &keys);
@@ -75,7 +74,7 @@ Dictionary js_to_dictionary(JSContext *ctx, const JSValue &p_val, List<void *> &
 	return dict;
 }
 
-Variant var_to_variant(JSContext *ctx, JSValue p_val) {
+Variant GavaScriptInstance::var_to_variant(JSContext *ctx, JSValue p_val) {
 	int64_t tag = JS_VALUE_GET_TAG(p_val);
 	switch (tag) {
 		case JS_TAG_INT:
@@ -161,11 +160,9 @@ void GavaScriptInstance::_ready() {
     // UtilityFunctions::print(jscode);
 }
 
-void GavaScriptInstance::run_script(String script) {
+Variant GavaScriptInstance::run_script(String script) {
     String script_str = script;
     const char* jscode = script_str.utf8().get_data();
     JSValue result = JS_Eval(context, jscode, strlen(jscode), "<quickjs>", JS_EVAL_TYPE_GLOBAL);
-    int int_result = JS_VALUE_GET_INT(result);
-    UtilityFunctions::print(int_result);
-
+    return var_to_variant(context, result);
 }

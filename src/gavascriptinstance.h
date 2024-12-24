@@ -3,12 +3,17 @@
 
 #include <godot_cpp/classes/node.hpp>
 #include "../thirdparty/quickjs/quickjs.h"
+#include <godot_cpp/templates/hash_set.hpp>
 
 namespace godot {
     class GavaScriptInstance : public Node {
         GDCLASS(GavaScriptInstance, Node)
     
     protected:
+        int get_js_array_length(JSContext *ctx, JSValue p_val);
+        void get_own_property_names(JSContext *ctx, JSValue p_object, HashSet<String> *r_list);
+        Dictionary js_to_dictionary(JSContext *ctx, const JSValue &p_val, List<void *> &stack);
+        Variant var_to_variant(JSContext *ctx, JSValue p_val);
         static void _bind_methods();
         JSRuntime *runtime;
         JSContext *context;
@@ -27,7 +32,7 @@ namespace godot {
 
         void _process(double delta) override;
         void _ready() override;
-        void run_script(String script);
+        Variant run_script(String script);
 
         enum {
 		__JS_ATOM_NULL = JS_ATOM_NULL,
