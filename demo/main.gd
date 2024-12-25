@@ -4,7 +4,7 @@ extends Node2D
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	print(gava_script_instance.run_script("'12' + '3'"))
+	gava_script_instance.run_script('console.log(12, 13, {"a": 123, "b": [2, 3, 4]})')
 	pass # Replace with function body.
 
 

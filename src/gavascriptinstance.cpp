@@ -111,7 +111,7 @@ Variant GavaScriptInstance::var_to_variant(JSContext *ctx, JSValue p_val) {
 		} break;
 		case JS_TAG_NULL:
 		case JS_TAG_UNDEFINED:
-			return Variant();
+			return Variant::NIL;
 			break;
 		default:
 #ifdef JS_NAN_BOXING
@@ -119,7 +119,7 @@ Variant GavaScriptInstance::var_to_variant(JSContext *ctx, JSValue p_val) {
 				return Variant(real_t(JS_VALUE_GET_FLOAT64(p_val)));
 			}
 #endif
-			return Variant();
+			return Variant::NIL;
 	}
 }
 
@@ -135,10 +135,9 @@ GavaScriptInstance::GavaScriptInstance() {
     ClassBindData data;
     runtime = JS_NewRuntime();
     context = JS_NewContext(runtime);
-    const char* jscode = "let a = 5; let b = 10; a + b;";
-    auto result = JS_Eval(context, jscode, strlen(jscode), "<quickjs>", JS_EVAL_TYPE_GLOBAL);
-    int int_result = JS_VALUE_GET_INT(result);
-    UtilityFunctions::print(int_result);
+	global_object = JS_GetGlobalObject(context);
+	add_global_console();
+    UtilityFunctions::print("GavaScript Instance Created");
 }
 
 GavaScriptInstance::~GavaScriptInstance() {
@@ -151,18 +150,86 @@ void GavaScriptInstance::_process(double delta) {
 }
 
 void GavaScriptInstance::_ready() {
-    UtilityFunctions::print("hello world");
-    // ClassBindData data;
-    // runtime = JS_NewRuntime();
-    // context = JS_NewContext(runtime);
-    // const char* jscode = "let a = 5; let b = 10; a + b;";
-    // JS_Eval(context, jscode, strlen(jscode), "<quickjs>", JS_EVAL_TYPE_GLOBAL);
-    // UtilityFunctions::print(jscode);
+
+}
+
+void godot::GavaScriptInstance::start(String module_name)
+{
+
 }
 
 Variant GavaScriptInstance::run_script(String script) {
     String script_str = script;
     const char* jscode = script_str.utf8().get_data();
     JSValue result = JS_Eval(context, jscode, strlen(jscode), "<quickjs>", JS_EVAL_TYPE_GLOBAL);
+
+	if(JS_IsException(result)){
+		JSValue e = JS_GetException(context);
+		JavaScriptError err;
+		dump_exception(context, e, &err);
+		
+		UtilityFunctions::printerr(error_to_string(err));
+		return Variant();
+		
+	}
+
     return var_to_variant(context, result);
 }
+
+void godot::GavaScriptInstance::dump_exception(JSContext *ctx, const JSValue &p_exception, JavaScriptError *r_error) {
+	JSValue err_file = JS_GetProperty(ctx, p_exception, JS_ATOM_fileName);
+	JSValue err_line = JS_GetProperty(ctx, p_exception, JS_ATOM_lineNumber);
+	JSValue err_msg = JS_GetProperty(ctx, p_exception, JS_ATOM_message);
+	JSValue err_stack = JS_GetProperty(ctx, p_exception, JS_ATOM_stack);
+
+	JS_ToInt32(ctx, &r_error->line, err_line);
+	r_error->message = js_to_string(ctx, err_msg);
+	r_error->file = js_to_string(ctx, err_file);
+	r_error->stack.push_back(js_to_string(ctx, err_stack));
+	r_error->column = 0;
+
+	JS_FreeValue(ctx, err_file);
+	JS_FreeValue(ctx, err_line);
+	JS_FreeValue(ctx, err_msg);
+	JS_FreeValue(ctx, err_stack);
+}
+
+String godot::GavaScriptInstance::error_to_string(const JavaScriptError &p_error)
+{
+    String message = "JavaScript Error";
+	if (p_error.stack.size()) {
+		message += p_error.stack[0];
+	}
+	message += p_error.message;
+	for (int i = 1; i < p_error.stack.size(); i++) {
+		message += p_error.stack[i];
+	}
+	return message;
+}
+
+void godot::GavaScriptInstance::add_global_console() {
+	JSValue console = JS_NewObject(context);
+	// JSValue log = JS_NewCFunctionMagic(context, console_log, "log", JS_CFUNC_generic_magic);
+	JSValue log = JS_NewCFunctionMagic(context, console_log, "log", 0, JS_CFUNC_generic_magic, 0);
+	JS_DefinePropertyValueStr(context, global_object, "console", console, PROP_DEF_DEFAULT);
+	JS_DefinePropertyValueStr(context, console, "log", log, PROP_DEF_DEFAULT);
+	console_object = JS_DupValue(context, console);
+}
+
+
+JSValue godot::GavaScriptInstance::console_log(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic)
+{
+	Vector<Variant> args;
+	args.resize(argc);
+
+	String message = "";
+	for (int i = 0; i < argc; ++i) {
+		auto variant = var_to_variant(ctx, argv[i]);
+		message += variant.stringify();
+		message += " ";
+	}
+
+	UtilityFunctions::print(message);
+	return JS_UNDEFINED;
+}
+
