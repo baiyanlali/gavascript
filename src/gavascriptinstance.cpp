@@ -165,7 +165,7 @@ void godot::GavaScriptInstance::start(String module_name)
 Variant GavaScriptInstance::run_script(String script) {
     String script_str = script;
     const char* jscode = script_str.utf8().get_data();
-    JSValue result = JS_Eval(context, jscode, strlen(jscode), "<quickjs>", JS_EVAL_TYPE_GLOBAL);
+    JSValue result = JS_Eval(context, jscode, strlen(jscode), "<quickjs>", JS_EVAL_TYPE_MODULE);
 
 	if(JS_IsException(result)){
 		JSValue e = JS_GetException(context);
@@ -243,8 +243,10 @@ JSModuleDef *godot::GavaScriptInstance::js_module_loader(JSContext *ctx, const c
 	resolving_file.parse_utf8(module_name);
 
 	String file = resolve_module_file(resolving_file);
+	UtilityFunctions::print("Loading module: '" + resolving_file + "'.");
 	ERR_FAIL_COND_V_MSG(file.is_empty(), NULL, "Failed to resolve module: '" + resolving_file + "'.");
 	resolve_path_cache.insert(resolving_file, file);
+
 
 	if (ModuleCache *ptr = thisInstance->module_cache.getptr(file)) {
 		m = ptr->module;
@@ -256,9 +258,13 @@ JSModuleDef *godot::GavaScriptInstance::js_module_loader(JSContext *ctx, const c
 
 		String content = fileAccess->get_as_text();
 
-		JSValue val = JS_Eval(ctx, content.utf8().get_data(), content.length(), file.utf8().get_data(), JS_EVAL_TYPE_MODULE);
+		// JSValue val = JS_Eval(ctx, content.utf8().get_data(), content.length(), file.utf8().get_data(), JS_EVAL_TYPE_MODULE);
 		
-		if(JS_IsException(val)){
+		/* compile the module */
+        JSValue val = JS_Eval(ctx, content.utf8().get_data(), content.length(), module_name,
+                           JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+
+        if(JS_IsException(val)){
 			JSValue e = JS_GetException(ctx);
 			JavaScriptError err;
 			thisInstance->dump_exception(ctx, e, &err);
@@ -266,8 +272,12 @@ JSModuleDef *godot::GavaScriptInstance::js_module_loader(JSContext *ctx, const c
 			UtilityFunctions::printerr(thisInstance->error_to_string(err));
 			return NULL;
 		}
-
-		m = JS_NewCModule(ctx, module_name, val);
+        /* XXX: could propagate the exception */
+        // js_module_set_import_meta(ctx, func_val, TRUE, FALSE);
+        /* the module is already referenced, so we must free it */
+        m = (JSModuleDef *)JS_VALUE_GET_PTR(val);
+        JS_FreeValue(ctx, val);
+		// m = JS_NewCModule(ctx, module_name, val);
 	}
 
 	return m;
