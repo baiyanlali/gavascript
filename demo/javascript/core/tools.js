@@ -99,7 +99,7 @@ export class defaultDict {
     this.base = base;
   }
 
-  get = (key) => {
+  get(key){
     if (this.hasOwnProperty(key)) {
       if (key === "get") return [];
       return this[key];

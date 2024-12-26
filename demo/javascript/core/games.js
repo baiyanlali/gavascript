@@ -4,7 +4,7 @@ import { EOS, Immovable } from "./ontology/vgdl-sprite.js";
 import { Avatar, MovingAvatar } from "./ontology/avatar.js";
 import { Termination } from "./ontology/termination.js";
 import { scoreChange, stochastic_effects } from "./ontology/effect.js";
-import { Resource } from "./ontology/resource";
+import { Resource } from "./ontology/resource.js";
 import { ContinuousPhysics, distance } from "./ontology/physics.js";
 
 const MAX_SPRITES = 10000;

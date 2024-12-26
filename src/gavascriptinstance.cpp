@@ -112,7 +112,7 @@ Variant GavaScriptInstance::var_to_variant(JSContext *ctx, JSValue p_val) {
 		} break;
 		case JS_TAG_NULL:
 		case JS_TAG_UNDEFINED:
-			return Variant::NIL;
+			return Variant();
 			break;
 		default:
 #ifdef JS_NAN_BOXING
@@ -120,12 +120,13 @@ Variant GavaScriptInstance::var_to_variant(JSContext *ctx, JSValue p_val) {
 				return Variant(real_t(JS_VALUE_GET_FLOAT64(p_val)));
 			}
 #endif
-			return Variant::NIL;
+			return Variant();
 	}
 }
 
 void GavaScriptInstance::_bind_methods() {
     ClassDB::bind_method(D_METHOD("run_script", "script"), &GavaScriptInstance::run_script);
+    ClassDB::bind_method(D_METHOD("start", "module_name"), &GavaScriptInstance::start);
 	// ClassDB::bind_method(D_METHOD("set_amplitude", "p_amplitude"), &GavaScriptInstance::set_amplitude);
 
 	// ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "amplitude"), "set_amplitude", "get_amplitude");
@@ -136,9 +137,9 @@ GavaScriptInstance::GavaScriptInstance() {
     ClassBindData data;
     runtime = JS_NewRuntime();
     context = JS_NewContext(runtime);
-
+	JS_AddIntrinsicOperators(context);
 	JS_SetModuleLoaderFunc(runtime, NULL, js_module_loader, this);
-
+	JS_SetContextOpaque(context, this);
 	global_object = JS_GetGlobalObject(context);
 	add_global_console();
     UtilityFunctions::print("GavaScript Instance Created");
@@ -159,7 +160,23 @@ void GavaScriptInstance::_ready() {
 
 void godot::GavaScriptInstance::start(String module_name)
 {
+	String file = resolve_module_file(module_name);
+	ERR_FAIL_COND_MSG(file.is_empty(), "Failed to resolve module: '" + module_name + "'.");
 
+	auto fileAccess = FileAccess::open(file, FileAccess::READ);
+	ERR_FAIL_COND_MSG(fileAccess.is_null(), "Failed to open module: '" + file + "'.");
+
+	String content = fileAccess->get_as_text();
+
+	JSValue val = JS_Eval(context, content.utf8().get_data(), content.length(), module_name.utf8().get_data(), JS_EVAL_TYPE_MODULE);
+
+	if(JS_IsException(val)){
+		JSValue e = JS_GetException(context);
+		JavaScriptError err;
+		dump_exception(context, e, &err);
+		UtilityFunctions::printerr(error_to_string(err));
+		return;
+	}
 }
 
 Variant GavaScriptInstance::run_script(String script) {
@@ -200,7 +217,8 @@ void godot::GavaScriptInstance::dump_exception(JSContext *ctx, const JSValue &p_
 
 String godot::GavaScriptInstance::error_to_string(const JavaScriptError &p_error)
 {
-    String message = "JavaScript Error";
+	
+    String message = "JavaScript Error: \n";
 	if (p_error.stack.size()) {
 		message += p_error.stack[0];
 	}
@@ -228,6 +246,9 @@ String godot::GavaScriptInstance::resolve_module_file(const String &file) {
 		return *ptr;
 	}
 	String path = file;
+	if (!path.ends_with(".js")) {
+		path += ".js";
+	}
 	if (FileAccess::file_exists(path))
 		return path;
 	return "";
@@ -249,6 +270,7 @@ JSModuleDef *godot::GavaScriptInstance::js_module_loader(JSContext *ctx, const c
 
 
 	if (ModuleCache *ptr = thisInstance->module_cache.getptr(file)) {
+		UtilityFunctions::print("Loading cached module: '" + resolving_file + "'.");
 		m = ptr->module;
 	}
 
@@ -277,6 +299,10 @@ JSModuleDef *godot::GavaScriptInstance::js_module_loader(JSContext *ctx, const c
         /* the module is already referenced, so we must free it */
         m = (JSModuleDef *)JS_VALUE_GET_PTR(val);
         JS_FreeValue(ctx, val);
+
+		ModuleCache module;
+		module.module = m;
+		thisInstance->module_cache[file] = module;
 		// m = JS_NewCModule(ctx, module_name, val);
 	}
 

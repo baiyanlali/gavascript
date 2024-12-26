@@ -1,6 +1,5 @@
 import {
   clone,
-  defaultDict,
   new_id,
   random,
   triPoints,
@@ -17,7 +16,7 @@ import {
   RED,
   RIGHT,
 } from "./constants.js";
-import { killSprite } from "./effect";
+import { killSprite } from "./effect.js";
 
 export class VGDLSprite {
   name = null;
@@ -113,7 +112,7 @@ export class VGDLSprite {
     this.lastmove = 0;
 
     // management of resources contained in the sprite
-    this.resources = new defaultDict(0);
+    this.resources = 0;
   }
 
   update(game) {
