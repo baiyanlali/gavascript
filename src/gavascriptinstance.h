@@ -5,6 +5,7 @@
 #include "../thirdparty/quickjs/quickjs.h"
 #include <godot_cpp/templates/hash_set.hpp>
 #include <godot_cpp/templates/vector.hpp>
+#include <godot_cpp/classes/resource.hpp>
 
 #define JS_HIDDEN_SYMBOL(x) ("\xFF" x)
 #define BINDING_DATA_FROM_JS(ctx, p_val) (JavaScriptGCHandler *)JS_GetOpaque((p_val), QuickJSBinder::get_origin_class_id((ctx)))
@@ -16,7 +17,7 @@
 #define ENDL "\r\n"
 
 namespace godot {
-
+    
     struct JavaScriptError {
         int line;
         int column;
@@ -24,6 +25,15 @@ namespace godot {
         String file;
         Vector<String> stack;
     };
+
+    struct ModuleCache {
+		int flags = 0;
+		JSModuleDef *module = NULL;
+		uint32_t hash = 0;
+		JSValue res_value;
+		Ref<Resource> res;
+	};
+    
     class GavaScriptInstance : public Node {
         GDCLASS(GavaScriptInstance, Node)
     
@@ -32,12 +42,16 @@ namespace godot {
         static void get_own_property_names(JSContext *ctx, JSValue p_object, HashSet<String> *r_list);
         static Dictionary js_to_dictionary(JSContext *ctx, const JSValue &p_val, List<void *> &stack);
         static Variant var_to_variant(JSContext *ctx, JSValue p_val);
+        static String resolve_module_file(const String &file);
+        static JSModuleDef *js_module_loader(JSContext *ctx, const char *module_name, void *opaque);
+
         static void _bind_methods();
         JSRuntime *runtime;
         JSContext *context;
 
         JSValue global_object;
         JSValue console_object;
+        HashMap<String, ModuleCache> module_cache;
 
         struct ClassBindData {
             JSClassID class_id;
@@ -61,6 +75,7 @@ namespace godot {
         String error_to_string(const JavaScriptError &p_error);
 
         void add_global_console();
+
 
         static JSValue console_log(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic);
 

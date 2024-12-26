@@ -3,6 +3,7 @@
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <godot_cpp/core/method_bind.hpp>
 #include <godot_cpp/core/defs.hpp>
+#include <godot_cpp/classes/file_access.hpp>
 
 using namespace godot;
 
@@ -135,6 +136,9 @@ GavaScriptInstance::GavaScriptInstance() {
     ClassBindData data;
     runtime = JS_NewRuntime();
     context = JS_NewContext(runtime);
+
+	JS_SetModuleLoaderFunc(runtime, NULL, js_module_loader, this);
+
 	global_object = JS_GetGlobalObject(context);
 	add_global_console();
     UtilityFunctions::print("GavaScript Instance Created");
@@ -216,6 +220,58 @@ void godot::GavaScriptInstance::add_global_console() {
 	console_object = JS_DupValue(context, console);
 }
 
+static HashMap<String, String> resolve_path_cache;
+
+
+String godot::GavaScriptInstance::resolve_module_file(const String &file) {
+	if (const String *ptr = resolve_path_cache.getptr(file)) {
+		return *ptr;
+	}
+	String path = file;
+	if (FileAccess::file_exists(path))
+		return path;
+	return "";
+}
+
+JSModuleDef *godot::GavaScriptInstance::js_module_loader(JSContext *ctx, const char *module_name, void *opaque)
+{
+	GavaScriptInstance *thisInstance = (GavaScriptInstance*)opaque;
+	JSModuleDef *m = NULL;
+	Error err;
+
+	String resolving_file;
+	resolving_file.parse_utf8(module_name);
+
+	String file = resolve_module_file(resolving_file);
+	ERR_FAIL_COND_V_MSG(file.is_empty(), NULL, "Failed to resolve module: '" + resolving_file + "'.");
+	resolve_path_cache.insert(resolving_file, file);
+
+	if (ModuleCache *ptr = thisInstance->module_cache.getptr(file)) {
+		m = ptr->module;
+	}
+
+	if (!m) {
+		auto fileAccess = FileAccess::open(file, FileAccess::READ);
+		ERR_FAIL_COND_V_MSG(fileAccess.is_null(), NULL, "Failed to open module: '" + file + "'.");
+
+		String content = fileAccess->get_as_text();
+
+		JSValue val = JS_Eval(ctx, content.utf8().get_data(), content.length(), file.utf8().get_data(), JS_EVAL_TYPE_MODULE);
+		
+		if(JS_IsException(val)){
+			JSValue e = JS_GetException(ctx);
+			JavaScriptError err;
+			thisInstance->dump_exception(ctx, e, &err);
+			
+			UtilityFunctions::printerr(thisInstance->error_to_string(err));
+			return NULL;
+		}
+
+		m = JS_NewCModule(ctx, module_name, val);
+	}
+
+	return m;
+}
 
 JSValue godot::GavaScriptInstance::console_log(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic)
 {
