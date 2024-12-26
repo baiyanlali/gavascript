@@ -1,7 +1,7 @@
 /*
  * Tiny arbitrary precision floating point library
  *
- * Copyright (c) 2017-2020 Fabrice Bellard
+ * Copyright (c) 2017-2021 Fabrice Bellard
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -164,6 +164,21 @@ static inline slimb_t sat_add(slimb_t a, slimb_t b)
     return r;
 }
 
+static inline __maybe_unused limb_t shrd(limb_t low, limb_t high, long shift)
+{
+    if (shift != 0)
+        low = (low >> shift) | (high << (LIMB_BITS - shift));
+    return low;
+}
+
+static inline __maybe_unused limb_t shld(limb_t a1, limb_t a0, long shift)
+{
+    if (shift != 0)
+        return (a1 << shift) | (a0 >> (LIMB_BITS - shift));
+    else
+        return a1;
+}
+
 #define malloc(s) malloc_is_forbidden(s)
 #define free(p) free_is_forbidden(p)
 #define realloc(p, s) realloc_is_forbidden(p, s)
@@ -236,7 +251,7 @@ int bf_set_ui(bf_t *r, uint64_t a)
         a1 = a >> 32;
         shift = clz(a1);
         r->tab[0] = a0 << shift;
-        r->tab[1] = (a1 << shift) | (a0 >> (LIMB_BITS - shift));
+        r->tab[1] = shld(a1, a0, shift);
         r->expn = 2 * LIMB_BITS - shift;
     }
 #endif
@@ -292,7 +307,8 @@ int bf_set(bf_t *r, const bf_t *a)
     }
     r->sign = a->sign;
     r->expn = a->expn;
-    memcpy(r->tab, a->tab, a->len * sizeof(limb_t));
+    if (a->len > 0)
+        memcpy(r->tab, a->tab, a->len * sizeof(limb_t));
     return 0;
 }
 
@@ -1694,6 +1710,13 @@ static int __bf_div(bf_t *r, const bf_t *a, const bf_t *b, limb_t prec,
         slimb_t d;
 
         na = n + nb;
+
+#if LIMB_LOG2_BITS == 6
+        if (na >= (SIZE_MAX / sizeof(limb_t)) - 1) {
+            return BF_ST_MEM_ERROR;  /* Return memory error status */
+        }
+#endif
+
         taba = bf_malloc(s, (na + 1) * sizeof(limb_t));
         if (!taba)
             goto fail;
@@ -2817,7 +2840,7 @@ int bf_mul_pow_radix(bf_t *r, const bf_t *T, limb_t radix,
     return ret;
 }
 
-static inline int to_digit(int c)
+static inline int bf_to_digit(int c)
 {
     if (c >= '0' && c <= '9')
         return c - '0';
@@ -2924,7 +2947,7 @@ static int bf_atof_internal(bf_t *r, slimb_t *pexponent,
             goto no_prefix;
         }
         /* there must be a digit after the prefix */
-        if (to_digit((uint8_t)*p) >= radix) {
+        if (bf_to_digit((uint8_t)*p) >= radix) {
             bf_set_nan(r);
             ret = 0;
             goto done;
@@ -2972,14 +2995,14 @@ static int bf_atof_internal(bf_t *r, slimb_t *pexponent,
     int_len = digit_count = 0;
     for(;;) {
         limb_t c;
-        if (*p == '.' && (p > p_start || to_digit(p[1]) < radix)) {
+        if (*p == '.' && (p > p_start || bf_to_digit(p[1]) < radix)) {
             if (has_decpt)
                 break;
             has_decpt = TRUE;
             int_len = digit_count;
             p++;
         }
-        c = to_digit(*p);
+        c = bf_to_digit(*p);
         if (c >= radix)
             break;
         digit_count++;
@@ -3060,7 +3083,7 @@ static int bf_atof_internal(bf_t *r, slimb_t *pexponent,
         }
         for(;;) {
             int c;
-            c = to_digit(*p);
+            c = bf_to_digit(*p);
             if (c >= 10)
                 break;
             if (unlikely(expn > ((BF_RAW_EXP_MAX - 2 - 9) / 10))) {
@@ -4798,11 +4821,6 @@ int bf_pow(bf_t *r, const bf_t *x, const bf_t *y, limb_t prec, bf_flags_t flags)
                 bf_t *y1;
                 if (y_emin < 0 && check_exact_power2n(r, T, -y_emin)) {
                     /* the problem is reduced to a power to an integer */
-#if 0
-                    printf("\nn=%" PRId64 "\n", -(int64_t)y_emin);
-                    bf_print_str("T", T);
-                    bf_print_str("r", r);
-#endif
                     bf_set(T, r);
                     y1 = &ytmp_s;
                     y1->tab = y->tab;
@@ -5354,19 +5372,20 @@ int bf_acos(bf_t *r, const bf_t *a, limb_t prec, bf_flags_t flags)
 #if LIMB_BITS == 64
 
 /* Note: we assume __int128 is available */
+/* uint128_t defined in libbf.h          */
 #define muldq(r1, r0, a, b)                     \
     do {                                        \
-        unsigned __int128 __t;                          \
-        __t = (unsigned __int128)(a) * (unsigned __int128)(b);  \
+        uint128_t __t;                          \
+        __t = (uint128_t)(a) * (uint128_t)(b);  \
         r0 = __t;                               \
         r1 = __t >> 64;                         \
     } while (0)
 
 #define divdq(q, r, a1, a0, b)                  \
     do {                                        \
-        unsigned __int128 __t;                  \
+        uint128_t __t;                  \
         limb_t __b = (b);                       \
-        __t = ((unsigned __int128)(a1) << 64) | (a0);   \
+        __t = ((uint128_t)(a1) << 64) | (a0);   \
         q = __t / __b;                                  \
         r = __t % __b;                                  \
     } while (0)
@@ -5391,21 +5410,6 @@ int bf_acos(bf_t *r, const bf_t *a, limb_t prec, bf_flags_t flags)
     } while (0)
 
 #endif /* LIMB_BITS != 64 */
-
-static inline __maybe_unused limb_t shrd(limb_t low, limb_t high, long shift)
-{
-    if (shift != 0)
-        low = (low >> shift) | (high << (LIMB_BITS - shift));
-    return low;
-}
-
-static inline __maybe_unused limb_t shld(limb_t a1, limb_t a0, long shift)
-{
-    if (shift != 0)
-        return (a1 << shift) | (a0 >> (LIMB_BITS - shift));
-    else
-        return a1;
-}
 
 #if LIMB_DIGITS == 19
 
@@ -6325,34 +6329,6 @@ static limb_t get_digit(const limb_t *tab, limb_t len, slimb_t pos)
     shift = pos - i * LIMB_DIGITS;
     return fast_shr_dec(tab[i], shift) % 10;
 }
-
-#if 0
-static limb_t get_digits(const limb_t *tab, limb_t len, slimb_t pos)
-{
-    limb_t a0, a1;
-    int shift;
-    slimb_t i;
-
-    i = floor_div(pos, LIMB_DIGITS);
-    shift = pos - i * LIMB_DIGITS;
-    if (i >= 0 && i < len)
-        a0 = tab[i];
-    else
-        a0 = 0;
-    if (shift == 0) {
-        return a0;
-    } else {
-        i++;
-        if (i >= 0 && i < len)
-            a1 = tab[i];
-        else
-            a1 = 0;
-        return fast_shr_dec(a0, shift) +
-            fast_urem(a1, &mp_pow_div[LIMB_DIGITS - shift]) *
-            mp_pow_dec[shift];
-    }
-}
-#endif
 
 /* return the addend for rounding. Note that prec can be <= 0 for bf_rint() */
 static int bfdec_get_rnd_add(int *pret, const bfdec_t *r, limb_t l,
@@ -7980,12 +7956,6 @@ static no_inline void limb_to_ntt(BFNTTState *s,
     int j, shift;
     limb_t base_mask1, a0, a1, a2, r, m, m_inv;
 
-#if 0
-    for(i = 0; i < a_len; i++) {
-        printf("%" PRId64 ": " FMT_LIMB "\n",
-               (int64_t)i, taba[i]);
-    }
-#endif
     memset(tabr, 0, sizeof(NTTLimb) * fft_len * nb_mods);
     shift = dpl & (LIMB_BITS - 1);
     if (shift == 0)
@@ -8112,14 +8082,6 @@ static no_inline void ntt_to_limb(BFNTTState *s, limb_t *tabr, limb_t r_len,
             }
             u[l] = r + carry[l];
 
-#if 0
-            printf("%" PRId64 ": ", i);
-            for(j = nb_mods - 1; j >= 0; j--) {
-                printf(" %019" PRIu64, u[j]);
-            }
-            printf("\n");
-#endif
-
             /* write the digits */
             pos = i * dpl;
             for(j = 0; j < n_limb1; j++) {
@@ -8212,14 +8174,6 @@ static no_inline void ntt_to_limb(BFNTTState *s, limb_t *tabr, limb_t r_len,
             u[k] = t;
         }
         u[l] = r + carry[l];
-
-#if 0
-        printf("%" PRId64 ": ", (int64_t)i);
-        for(j = nb_mods - 1; j >= 0; j--) {
-            printf(" " FMT_LIMB, u[j]);
-        }
-        printf("\n");
-#endif
 
         /* write the digits */
         pos = i * dpl;
@@ -8464,3 +8418,7 @@ int bf_get_fft_size(int *pdpl, int *pnb_mods, limb_t len)
 }
 
 #endif /* !USE_FFT_MUL */
+
+#undef malloc
+#undef free
+#undef realloc

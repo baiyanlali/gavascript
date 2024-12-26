@@ -4,7 +4,7 @@ extends Node2D
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	gava_script_instance.start('jstest/main.js')
+	gava_script_instance.start('javascript/main.js')
 	pass # Replace with function body.
 
 

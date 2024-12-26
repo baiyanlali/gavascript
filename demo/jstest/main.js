@@ -9,7 +9,7 @@ export class Node {
     }
   
     insert = (node) => {
-    
+        
       if (this.indent < node.indent) {
         this.children.push(node);
         node.parent = this;

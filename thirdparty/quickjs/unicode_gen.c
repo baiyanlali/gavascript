@@ -33,11 +33,6 @@
 
 #include "cutils.h"
 
-uint32_t total_tables;
-uint32_t total_table_bytes;
-uint32_t total_index;
-uint32_t total_index_bytes;
-
 /* define it to be able to test unicode.c */
 //#define USE_TEST
 /* profile tests */
@@ -273,7 +268,7 @@ int find_name(const char **tab, int tab_len, const char *name)
     return -1;
 }
 
-static BOOL get_prop(uint32_t c, int prop_idx)
+static int get_prop(uint32_t c, int prop_idx)
 {
     return (unicode_db[c].prop_bitmap_tab[prop_idx >> 5] >> (prop_idx & 0x1f)) & 1;
 }
@@ -387,20 +382,6 @@ void parse_unicode_data(const char *filename)
                     break;
                 add_char(&ci->decomp_data, &size, &ci->decomp_len, strtoul(p, (char **)&p, 16));
             }
-#if 0
-            {
-                int i;
-                static int count, d_count;
-
-                printf("%05x: %c", code, ci->is_compat ? 'C': ' ');
-                for(i = 0; i < ci->decomp_len; i++)
-                    printf(" %05x", ci->decomp_data[i]);
-                printf("\n");
-                count++;
-                d_count += ci->decomp_len;
-                //                printf("%d %d\n", count, d_count);
-            }
-#endif
         }
 
         p = get_field(line, 9);
@@ -625,7 +606,8 @@ void parse_derived_core_properties(const char *filename)
             p++;
             p += strspn(p, " \t");
             q = buf;
-            while (*p != '\0' && *p != ' ' && *p != '#' && *p != '\t') {
+            static const char ignore[] = "\t #;"; // includes \0
+            while (!memchr(ignore, *p, sizeof(ignore))) {
                 if ((q - buf) < sizeof(buf) - 1)
                     *q++ = *p;
                 p++;
@@ -1117,6 +1099,24 @@ void find_run_type(TableEntry *te, CCInfo *tab, int code)
             te->ext_data[1] = ci->u_data[1];
             te->ext_data[2] = ci->u_data[2];
             te->ext_len = 3;
+        } else if (ci->u_len == 2 && ci->l_len == 0 && ci->f_len == 1) {
+            // U+FB05 LATIN SMALL LIGATURE LONG S T
+            assert(code == 0xFB05);
+            te->len = 1;
+            te->type = RUN_TYPE_UF_EXT2;
+            te->ext_data[0] = ci->u_data[0];
+            te->ext_data[1] = ci->u_data[1];
+            te->ext_len = 2;
+        } else if (ci->u_len == 3 && ci->l_len == 0 && ci->f_len == 1) {
+            // U+1FD3 GREEK SMALL LETTER IOTA WITH DIALYTIKA AND OXIA or
+            // U+1FE3 GREEK SMALL LETTER UPSILON WITH DIALYTIKA AND OXIA
+            assert(code == 0x1FD3 || code == 0x1FE3);
+            te->len = 1;
+            te->type = RUN_TYPE_UF_EXT3;
+            te->ext_data[0] = ci->u_data[0];
+            te->ext_data[1] = ci->u_data[1];
+            te->ext_data[2] = ci->u_data[2];
+            te->ext_len = 3;
         } else {
             printf("unsupported encoding case:\n");
             dump_cc_info(ci, code);
@@ -1234,12 +1234,6 @@ void build_conv_table(CCInfo *tab)
             continue;
         assert(te - conv_table < countof(conv_table));
         find_run_type(te, tab, code);
-#if 0
-        if (te->type == RUN_TYPE_TODO) {
-            printf("TODO: ");
-            dump_cc_info(ci, code);
-        }
-#endif
         assert(te->len <= 127);
         code += te->len - 1;
         te++;
@@ -1333,9 +1327,7 @@ void dump_case_conv_table(FILE *f)
     uint32_t v;
     const TableEntry *te;
 
-    total_tables++;
-    total_table_bytes += conv_table_len * sizeof(uint32_t);
-    fprintf(f, "static const uint32_t case_conv_table1[%d] = {", conv_table_len);
+    fprintf(f, "static const uint32_t case_conv_table1[%u] = {", conv_table_len);
     for(i = 0; i < conv_table_len; i++) {
         if (i % 4 == 0)
             fprintf(f, "\n   ");
@@ -1348,9 +1340,7 @@ void dump_case_conv_table(FILE *f)
     }
     fprintf(f, "\n};\n\n");
 
-    total_tables++;
-    total_table_bytes += conv_table_len;
-    fprintf(f, "static const uint8_t case_conv_table2[%d] = {", conv_table_len);
+    fprintf(f, "static const uint8_t case_conv_table2[%u] = {", conv_table_len);
     for(i = 0; i < conv_table_len; i++) {
         if (i % 8 == 0)
             fprintf(f, "\n   ");
@@ -1359,9 +1349,7 @@ void dump_case_conv_table(FILE *f)
     }
     fprintf(f, "\n};\n\n");
 
-    total_tables++;
-    total_table_bytes += ext_data_len * sizeof(uint16_t);
-    fprintf(f, "static const uint16_t case_conv_ext[%d] = {", ext_data_len);
+    fprintf(f, "static const uint16_t case_conv_ext[%u] = {", ext_data_len);
     for(i = 0; i < ext_data_len; i++) {
         if (i % 8 == 0)
             fprintf(f, "\n   ");
@@ -1385,7 +1373,7 @@ static int sp_cc_cmp(const void *p1, const void *p2)
         return memcmp(c1->f_data, c2->f_data, sizeof(c1->f_data[0]) * c1->f_len);
     }
 }
-
+                     
 /* dump the case special cases (multi character results which are
    identical and need specific handling in lre_canonicalize() */
 void dump_case_folding_special_cases(CCInfo *tab)
@@ -1405,7 +1393,7 @@ void dump_case_folding_special_cases(CCInfo *tab)
             len = 1;
             while ((i + len) <= CHARCODE_MAX && !sp_cc_cmp(&perm[i], &perm[i + len]))
                 len++;
-
+            
             if (len > 1) {
                 for(j = i; j < i + len; j++)
                     dump_cc_info(&tab[perm[j]], perm[j]);
@@ -1416,7 +1404,7 @@ void dump_case_folding_special_cases(CCInfo *tab)
     free(perm);
     global_tab = NULL;
 }
-
+                                     
 
 int tabcmp(const int *tab1, const int *tab2, int n)
 {
@@ -1463,27 +1451,12 @@ void compute_internal_props(void)
         /* XXX: reduce table size (438 bytes) */
         set_prop(i, PROP_Changes_When_NFKC_Casefolded1,
                  get_prop(i, PROP_Changes_When_NFKC_Casefolded) ^ (ci->f_len != 0));
-#if 0
-        /* TEST */
-#define M(x) (1U << GCAT_ ## x)
-        {
-            int b;
-            b = ((M(Mn) | M(Cf) | M(Lm) | M(Sk)) >>
-                 unicode_db[i].general_category) & 1;
-            set_prop(i, PROP_Cased1,
-                     get_prop(i, PROP_Case_Ignorable) ^ b);
-        }
-#undef M
-#endif
     }
 }
 
 void dump_byte_table(FILE *f, const char *cname, const uint8_t *tab, int len)
 {
     int i;
-
-    total_tables++;
-    total_table_bytes += len;
     fprintf(f, "static const uint8_t %s[%d] = {", cname, len);
     for(i = 0; i < len; i++) {
         if (i % 8 == 0)
@@ -1493,26 +1466,9 @@ void dump_byte_table(FILE *f, const char *cname, const uint8_t *tab, int len)
     fprintf(f, "\n};\n\n");
 }
 
-void dump_index_table(FILE *f, const char *cname, const uint8_t *tab, int len)
-{
-    int i, code, offset;
-
-    total_index++;
-    total_index_bytes += len;
-    fprintf(f, "static const uint8_t %s[%d] = {\n", cname, len);
-    for(i = 0; i < len; i += 3) {
-        code = tab[i] + (tab[i+1] << 8) + ((tab[i+2] & 0x1f) << 16);
-        offset = ((i / 3) + 1) * 32 + (tab[i+2] >> 5);
-        fprintf(f, "    0x%02x, 0x%02x, 0x%02x,", tab[i], tab[i+1], tab[i+2]);
-        fprintf(f, "  // %6.5X at %d%s\n", code, offset,
-                i == len - 3 ? " (upper bound)" : "");
-    }
-    fprintf(f, "};\n\n");
-}
-
 #define PROP_BLOCK_LEN 32
 
-void build_prop_table(FILE *f, const char *name, int prop_index, BOOL add_index)
+void build_prop_table(FILE *f, int prop_index, BOOL add_index)
 {
     int i, j, n, v, offset, code;
     DynBuf dbuf_s, *dbuf = &dbuf_s;
@@ -1564,14 +1520,6 @@ void build_prop_table(FILE *f, const char *name, int prop_index, BOOL add_index)
             block_end_pos += PROP_BLOCK_LEN;
         }
 
-        /* Compressed byte encoding:
-           00..3F: 2 packed lengths: 3-bit + 3-bit
-           40..5F: 5-bits plus extra byte for length
-           60..7F: 5-bits plus 2 extra bytes for length
-           80..FF: 7-bit length
-           lengths must be incremented to get character count
-           Ranges alternate between false and true return value.
-         */
         v = buf[i];
         code += v + 1;
         bit ^= 1;
@@ -1612,7 +1560,7 @@ void build_prop_table(FILE *f, const char *name, int prop_index, BOOL add_index)
     dump_byte_table(f, cname, dbuf->buf, dbuf->size);
     if (add_index) {
         snprintf(cname, sizeof(cname), "unicode_prop_%s_index", unicode_prop_name[prop_index]);
-        dump_index_table(f, cname, dbuf2->buf, dbuf2->size);
+        dump_byte_table(f, cname, dbuf2->buf, dbuf2->size);
     }
 
     dbuf_free(dbuf);
@@ -1622,10 +1570,11 @@ void build_prop_table(FILE *f, const char *name, int prop_index, BOOL add_index)
 
 void build_flags_tables(FILE *f)
 {
-    build_prop_table(f, "Cased1", PROP_Cased1, TRUE);
-    build_prop_table(f, "Case_Ignorable", PROP_Case_Ignorable, TRUE);
-    build_prop_table(f, "ID_Start", PROP_ID_Start, TRUE);
-    build_prop_table(f, "ID_Continue1", PROP_ID_Continue1, TRUE);
+    build_prop_table(f, PROP_Cased1, TRUE);
+    build_prop_table(f, PROP_Case_Ignorable, TRUE);
+    build_prop_table(f, PROP_ID_Start, TRUE);
+    build_prop_table(f, PROP_ID_Continue1, TRUE);
+    build_prop_table(f, PROP_White_Space, TRUE);
 }
 
 void dump_name_table(FILE *f, const char *cname, const char **tab_name, int len,
@@ -1660,9 +1609,7 @@ void build_general_category_table(FILE *f)
 {
     int i, v, j, n, n1;
     DynBuf dbuf_s, *dbuf = &dbuf_s;
-#ifdef DUMP_TABLE_SIZE
     int cw_count, cw_len_count[4], cw_start;
-#endif
 
     fprintf(f, "typedef enum {\n");
     for(i = 0; i < GCAT_COUNT; i++)
@@ -1676,11 +1623,9 @@ void build_general_category_table(FILE *f)
 
 
     dbuf_init(dbuf);
-#ifdef DUMP_TABLE_SIZE
     cw_count = 0;
     for(i = 0; i < 4; i++)
         cw_len_count[i] = 0;
-#endif
     for(i = 0; i <= CHARCODE_MAX;) {
         v = unicode_db[i].general_category;
         j = i + 1;
@@ -1699,11 +1644,9 @@ void build_general_category_table(FILE *f)
             }
         }
         //        printf("%05x %05x %d\n", i, n, v);
-        n--;
-#ifdef DUMP_TABLE_SIZE
         cw_count++;
+        n--;
         cw_start = dbuf->size;
-#endif
         if (n < 7) {
             dbuf_putc(dbuf, (n << 5) | v);
         } else if (n < 7 + 128) {
@@ -1725,13 +1668,12 @@ void build_general_category_table(FILE *f)
             dbuf_putc(dbuf, n1 >> 8);
             dbuf_putc(dbuf, n1);
         }
-#ifdef DUMP_TABLE_SIZE
         cw_len_count[dbuf->size - cw_start - 1]++;
-#endif
         i += n + 1;
     }
 #ifdef DUMP_TABLE_SIZE
-    printf("general category: %d entries [", cw_count);
+    printf("general category: %d entries [",
+           cw_count);
     for(i = 0; i < 4; i++)
         printf(" %d", cw_len_count[i]);
     printf(" ], length=%d bytes\n", (int)dbuf->size);
@@ -1746,9 +1688,7 @@ void build_script_table(FILE *f)
 {
     int i, v, j, n, n1, type;
     DynBuf dbuf_s, *dbuf = &dbuf_s;
-#ifdef DUMP_TABLE_SIZE
     int cw_count, cw_len_count[4], cw_start;
-#endif
 
     fprintf(f, "typedef enum {\n");
     for(i = 0; i < SCRIPT_COUNT; i++)
@@ -1762,11 +1702,9 @@ void build_script_table(FILE *f)
                     unicode_script_short_name + i);
 
     dbuf_init(dbuf);
-#ifdef DUMP_TABLE_SIZE
     cw_count = 0;
     for(i = 0; i < 4; i++)
         cw_len_count[i] = 0;
-#endif
     for(i = 0; i <= CHARCODE_MAX;) {
         v = unicode_db[i].script;
         j = i + 1;
@@ -1776,11 +1714,9 @@ void build_script_table(FILE *f)
         if (v == 0 && j == (CHARCODE_MAX + 1))
             break;
         //        printf("%05x %05x %d\n", i, n, v);
-        n--;
-#ifdef DUMP_TABLE_SIZE
         cw_count++;
+        n--;
         cw_start = dbuf->size;
-#endif
         if (v == 0)
             type = 0;
         else
@@ -1802,13 +1738,12 @@ void build_script_table(FILE *f)
         if (type != 0)
             dbuf_putc(dbuf, v);
 
-#ifdef DUMP_TABLE_SIZE
         cw_len_count[dbuf->size - cw_start - 1]++;
-#endif
         i += n + 1;
     }
-#ifdef DUMP_TABLE_SIZE
-    printf("script: %d entries [", cw_count);
+#if defined(DUMP_TABLE_SIZE)
+    printf("script: %d entries [",
+           cw_count);
     for(i = 0; i < 4; i++)
         printf(" %d", cw_len_count[i]);
     printf(" ], length=%d bytes\n", (int)dbuf->size);
@@ -1823,11 +1758,10 @@ void build_script_ext_table(FILE *f)
 {
     int i, j, n, n1, script_ext_len;
     DynBuf dbuf_s, *dbuf = &dbuf_s;
-#if defined(DUMP_TABLE_SIZE)
-    int cw_count = 0;
-#endif
+    int cw_count;
 
     dbuf_init(dbuf);
+    cw_count = 0;
     for(i = 0; i <= CHARCODE_MAX;) {
         script_ext_len = unicode_db[i].script_ext_len;
         j = i + 1;
@@ -1838,9 +1772,7 @@ void build_script_ext_table(FILE *f)
             j++;
         }
         n = j - i;
-#if defined(DUMP_TABLE_SIZE)
         cw_count++;
-#endif
         n--;
         if (n < 128) {
             dbuf_putc(dbuf, n);
@@ -1862,7 +1794,8 @@ void build_script_ext_table(FILE *f)
         i += n + 1;
     }
 #ifdef DUMP_TABLE_SIZE
-    printf("script_ext: %d entries", cw_count);
+    printf("script_ext: %d entries",
+           cw_count);
     printf(", length=%d bytes\n", (int)dbuf->size);
 #endif
 
@@ -1881,10 +1814,11 @@ void build_prop_list_table(FILE *f)
     for(i = 0; i < PROP_TABLE_COUNT; i++) {
         if (i == PROP_ID_Start ||
             i == PROP_Case_Ignorable ||
-            i == PROP_ID_Continue1) {
+            i == PROP_ID_Continue1 ||
+            i == PROP_White_Space) {
             /* already generated */
         } else {
-            build_prop_table(f, unicode_prop_name[i], i, FALSE);
+            build_prop_table(f, i, FALSE);
         }
     }
 
@@ -1981,7 +1915,7 @@ void check_flags(void)
     BOOL flag_ref, flag;
     for(c = 0; c <= CHARCODE_MAX; c++) {
         flag_ref = get_prop(c, PROP_Cased);
-        flag = !!lre_is_cased(c);
+        flag = lre_is_cased(c);
         if (flag != flag_ref) {
             printf("ERROR: c=%05x cased=%d ref=%d\n",
                    c, flag, flag_ref);
@@ -1989,7 +1923,7 @@ void check_flags(void)
         }
 
         flag_ref = get_prop(c, PROP_Case_Ignorable);
-        flag = !!lre_is_case_ignorable(c);
+        flag = lre_is_case_ignorable(c);
         if (flag != flag_ref) {
             printf("ERROR: c=%05x case_ignorable=%d ref=%d\n",
                    c, flag, flag_ref);
@@ -1997,7 +1931,7 @@ void check_flags(void)
         }
 
         flag_ref = get_prop(c, PROP_ID_Start);
-        flag = !!lre_is_id_start(c);
+        flag = lre_is_id_start(c);
         if (flag != flag_ref) {
             printf("ERROR: c=%05x id_start=%d ref=%d\n",
                    c, flag, flag_ref);
@@ -2005,7 +1939,7 @@ void check_flags(void)
         }
 
         flag_ref = get_prop(c, PROP_ID_Continue);
-        flag = !!lre_is_id_continue(c);
+        flag = lre_is_id_continue(c);
         if (flag != flag_ref) {
             printf("ERROR: c=%05x id_cont=%d ref=%d\n",
                    c, flag, flag_ref);
@@ -2019,7 +1953,7 @@ void check_flags(void)
         count = 0;
         for(c = 0x20; c <= 0xffff; c++) {
             flag_ref = get_prop(c, PROP_ID_Start);
-            flag = !!lre_is_id_start(c);
+            flag = lre_is_id_start(c);
             assert(flag == flag_ref);
             count++;
         }
@@ -2036,23 +1970,17 @@ void check_flags(void)
 
 void build_cc_table(FILE *f)
 {
-    // Compress combining class table
-    // see: https://www.unicode.org/reports/tr44/#Canonical_Combining_Class_Values
-    int i, cc, n, type, n1, block_end_pos;
+    int i, cc, n, cc_table_len, type, n1;
     DynBuf dbuf_s, *dbuf = &dbuf_s;
     DynBuf dbuf1_s, *dbuf1 = &dbuf1_s;
-#if defined(DUMP_CC_TABLE) || defined(DUMP_TABLE_SIZE)
-    int cw_len_tab[3], cw_start, cc_table_len;
-#endif
+    int cw_len_tab[3], cw_start, block_end_pos;
     uint32_t v;
 
     dbuf_init(dbuf);
     dbuf_init(dbuf1);
-#if defined(DUMP_CC_TABLE) || defined(DUMP_TABLE_SIZE)
     cc_table_len = 0;
     for(i = 0; i < countof(cw_len_tab); i++)
         cw_len_tab[i] = 0;
-#endif
     block_end_pos = CC_BLOCK_LEN;
     for(i = 0; i <= CHARCODE_MAX;) {
         cc = unicode_db[i].combining_class;
@@ -2093,16 +2021,7 @@ void build_cc_table(FILE *f)
             dbuf_putc(dbuf1, v >> 16);
             block_end_pos += CC_BLOCK_LEN;
         }
-#if defined(DUMP_CC_TABLE) || defined(DUMP_TABLE_SIZE)
         cw_start = dbuf->size;
-#endif
-        /* Compressed run length encoding:
-           - 2 high order bits are combining class type
-           -         0:0, 1:230, 2:extra byte linear progression, 3:extra byte
-           - 00..2F: range length (add 1)
-           - 30..37: 3-bit range-length + 1 extra byte
-           - 38..3F: 3-bit range-length + 2 extra byte
-         */
         if (n1 < 48) {
             dbuf_putc(dbuf, n1 | (type << 6));
         } else if (n1 < 48 + (1 << 11)) {
@@ -2116,12 +2035,10 @@ void build_cc_table(FILE *f)
             dbuf_putc(dbuf, n1 >> 8);
             dbuf_putc(dbuf, n1);
         }
-#if defined(DUMP_CC_TABLE) || defined(DUMP_TABLE_SIZE)
         cw_len_tab[dbuf->size - cw_start - 1]++;
-        cc_table_len++;
-#endif
         if (type == 0 || type == 1)
             dbuf_putc(dbuf, cc);
+        cc_table_len++;
         i += n;
     }
 
@@ -2132,7 +2049,7 @@ void build_cc_table(FILE *f)
     dbuf_putc(dbuf1, v >> 16);
 
     dump_byte_table(f, "unicode_cc_table", dbuf->buf, dbuf->size);
-    dump_index_table(f, "unicode_cc_index", dbuf1->buf, dbuf1->size);
+    dump_byte_table(f, "unicode_cc_index", dbuf1->buf, dbuf1->size);
 
 #if defined(DUMP_CC_TABLE) || defined(DUMP_TABLE_SIZE)
     printf("CC table: size=%d (%d entries) [",
@@ -2746,20 +2663,6 @@ void add_decomp_data(uint8_t *data_buf, int *pidx, DecompEntry *de)
     *pidx = idx;
 }
 
-#if 0
-void dump_large_char(void)
-{
-    int i, j;
-    for(i = 0; i <= CHARCODE_MAX; i++) {
-        CCInfo *ci = &unicode_db[i];
-        for(j = 0; j < ci->decomp_len; j++) {
-            if (ci->decomp_data[j] > 0xffff)
-                printf("%05x\n", ci->decomp_data[j]);
-        }
-    }
-}
-#endif
-
 void build_compose_table(FILE *f, const DecompEntry *tab_de);
 
 void build_decompose_table(FILE *f)
@@ -2813,9 +2716,8 @@ void build_decompose_table(FILE *f)
     }
 #endif
 
-    total_tables++;
-    total_table_bytes += array_len * sizeof(uint32_t);
-    fprintf(f, "static const uint32_t unicode_decomp_table1[%d] = {", array_len);
+    fprintf(f, "static const uint32_t unicode_decomp_table1[%u] = {",
+            array_len);
     count = 0;
     for(i = 0; i <= code_max; i++) {
         de = &tab_de[i];
@@ -2833,9 +2735,8 @@ void build_decompose_table(FILE *f)
     }
     fprintf(f, "\n};\n\n");
 
-    total_tables++;
-    total_table_bytes += array_len * sizeof(uint16_t);
-    fprintf(f, "static const uint16_t unicode_decomp_table2[%d] = {", array_len);
+    fprintf(f, "static const uint16_t unicode_decomp_table2[%u] = {",
+            array_len);
     count = 0;
     for(i = 0; i <= code_max; i++) {
         de = &tab_de[i];
@@ -2848,9 +2749,8 @@ void build_decompose_table(FILE *f)
     }
     fprintf(f, "\n};\n\n");
 
-    total_tables++;
-    total_table_bytes += data_len;
-    fprintf(f, "static const uint8_t unicode_decomp_data[%d] = {", data_len);
+    fprintf(f, "static const uint8_t unicode_decomp_data[%u] = {",
+            data_len);
     for(i = 0; i < data_len; i++) {
         if (i % 8 == 0)
             fprintf(f, "\n   ");
@@ -2931,19 +2831,8 @@ void build_compose_table(FILE *f, const DecompEntry *tab_de)
     }
     qsort(tab_ce, tab_ce_len, sizeof(*tab_ce), ce_cmp);
 
-#if 0
-    {
-        printf("tab_ce_len=%d\n", tab_ce_len);
-        for(i = 0; i < tab_ce_len; i++) {
-            ce = &tab_ce[i];
-            printf("%05x %05x %05x\n", ce->c[0], ce->c[1], ce->p);
-        }
-    }
-#endif
-
-    total_tables++;
-    total_table_bytes += tab_ce_len * sizeof(uint16_t);
-    fprintf(f, "static const uint16_t unicode_comp_table[%u] = {", tab_ce_len);
+    fprintf(f, "static const uint16_t unicode_comp_table[%u] = {",
+            tab_ce_len);
     for(i = 0; i < tab_ce_len; i++) {
         if (i % 8 == 0)
             fprintf(f, "\n   ");
@@ -3118,24 +3007,22 @@ void normalization_test(const char *filename)
 }
 #endif
 
-int main(int argc, char *argv[])
+int main(int argc, char **argv)
 {
     const char *unicode_db_path, *outfilename;
     char filename[1024];
-    int arg = 1;
 
-    if (arg >= argc || (!strcmp(argv[arg], "-h") || !strcmp(argv[arg], "--help"))) {
-        printf("usage: %s PATH [OUTPUT]\n"
-               "  PATH    path to the Unicode database directory\n"
-               "  OUTPUT  name of the output file.  If omitted, a self test is performed\n"
-               "          using the files from the Unicode library\n"
-               , argv[0]);
-        return 1;
+    if (argc < 2) {
+        printf("usage: %s unicode_db_path [output_file]\n"
+               "\n"
+               "If no output_file is given, a self test is done using the current unicode library\n",
+               argv[0]);
+        exit(1);
     }
-    unicode_db_path = argv[arg++];
+    unicode_db_path = argv[1];
     outfilename = NULL;
-    if (arg < argc)
-        outfilename = argv[arg++];
+    if (argc >= 3)
+        outfilename = argv[2];
 
     unicode_db = mallocz(sizeof(unicode_db[0]) * (CHARCODE_MAX + 1));
 
@@ -3176,7 +3063,7 @@ int main(int argc, char *argv[])
     build_conv_table(unicode_db);
 
 #ifdef DUMP_CASE_FOLDING_SPECIAL_CASES
-    dump_case_folding_special_cases(unicode_db);
+    dump_case_folding_special_cases(unicode_db); 
 #endif
 
     if (!outfilename) {
@@ -3209,16 +3096,12 @@ int main(int argc, char *argv[])
         dump_case_conv_table(fo);
         compute_internal_props();
         build_flags_tables(fo);
-        fprintf(fo, "#ifdef CONFIG_ALL_UNICODE\n\n");
         build_cc_table(fo);
         build_decompose_table(fo);
         build_general_category_table(fo);
         build_script_table(fo);
         build_script_ext_table(fo);
         build_prop_list_table(fo);
-        fprintf(fo, "#endif /* CONFIG_ALL_UNICODE */\n");
-        fprintf(fo, "/* %u tables / %u bytes, %u index / %u bytes */\n",
-                total_tables, total_table_bytes, total_index, total_index_bytes);
         fclose(fo);
     }
     return 0;

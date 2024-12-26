@@ -101,10 +101,12 @@ Variant GavaScriptInstance::var_to_variant(JSContext *ctx, JSValue p_val) {
 				}
 				return arr;
 			} else if (JS_IsFunction(ctx, p_val)) {
-				JSValue function = JS_FunctionToString(ctx, p_val);
-				String ret = js_to_string(ctx, function);
-				JS_FreeValue(ctx, function);
-				return ret;
+				// JSValue function = JS_FunctionToString(ctx, p_val);
+				// String ret = js_to_string(ctx, function);
+				// JS_FreeValue(ctx, function);
+				// return ret;
+				// TODO: Implement
+				return Variant();
 			} else { // Plain Object as Dictionary
 				List<void *> stack;
 				return js_to_dictionary(ctx, p_val, stack);
@@ -137,7 +139,7 @@ GavaScriptInstance::GavaScriptInstance() {
     ClassBindData data;
     runtime = JS_NewRuntime();
     context = JS_NewContext(runtime);
-	JS_AddIntrinsicOperators(context);
+	// JS_AddIntrinsicOperators(context);
 	JS_SetModuleLoaderFunc(runtime, NULL, js_module_loader, this);
 	JS_SetContextOpaque(context, this);
 	global_object = JS_GetGlobalObject(context);
@@ -198,19 +200,19 @@ Variant GavaScriptInstance::run_script(String script) {
 }
 
 void godot::GavaScriptInstance::dump_exception(JSContext *ctx, const JSValue &p_exception, JavaScriptError *r_error) {
-	JSValue err_file = JS_GetProperty(ctx, p_exception, JS_ATOM_fileName);
-	JSValue err_line = JS_GetProperty(ctx, p_exception, JS_ATOM_lineNumber);
+	// JSValue err_file = JS_GetProperty(ctx, p_exception, JS_ATOM_fileName);
+	// JSValue err_line = JS_GetProperty(ctx, p_exception, JS_ATOM_lineNumber);
 	JSValue err_msg = JS_GetProperty(ctx, p_exception, JS_ATOM_message);
 	JSValue err_stack = JS_GetProperty(ctx, p_exception, JS_ATOM_stack);
 
-	JS_ToInt32(ctx, &r_error->line, err_line);
+	// JS_ToInt32(ctx, &r_error->line, err_line);
 	r_error->message = js_to_string(ctx, err_msg);
-	r_error->file = js_to_string(ctx, err_file);
+	// r_error->file = js_to_string(ctx, err_file);
 	r_error->stack.push_back(js_to_string(ctx, err_stack));
 	r_error->column = 0;
 
-	JS_FreeValue(ctx, err_file);
-	JS_FreeValue(ctx, err_line);
+	// JS_FreeValue(ctx, err_file);
+	// JS_FreeValue(ctx, err_line);
 	JS_FreeValue(ctx, err_msg);
 	JS_FreeValue(ctx, err_stack);
 }
