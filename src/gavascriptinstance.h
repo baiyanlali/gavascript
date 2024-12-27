@@ -49,19 +49,29 @@ namespace godot {
         JSRuntime *runtime;
         JSContext *context;
 
-        JSValue global_object;
-        JSValue console_object;
-        HashMap<String, ModuleCache> module_cache;
-
         struct ClassBindData {
             JSClassID class_id;
             CharString class_name;
             JSValue prototype;
             JSValue constructor;
             JSClassDef jsclass;
-            const ClassDB::ClassInfo *gdclass;
             const ClassBindData *base_class;
 	    };
+
+        JSValue godot_object;
+        JSValue global_object;
+        JSValue console_object;
+        HashMap<String, ModuleCache> module_cache;
+        static HashMap<String, const char *> class_remap;
+
+        const ClassBindData *godot_object_class;
+        const ClassBindData *godot_reference_class;
+        HashMap<JSClassID, ClassBindData> class_bindings;
+        Vector<MethodBind *> godot_methods;
+        int internal_godot_method_id;
+	    HashMap<StringName, const ClassBindData *> classname_bindings;
+    
+        
     public:
         GavaScriptInstance();
         ~GavaScriptInstance();
@@ -74,6 +84,11 @@ namespace godot {
         void dump_exception(JSContext *ctx, const JSValue &p_exception, JavaScriptError *r_error);
         String error_to_string(const JavaScriptError &p_error);
 
+        static JSAtom get_atom(JSContext *ctx, const StringName &p_key);
+
+        JSClassID register_class(const StringName *p_class);
+        void add_godot_classes();
+        
         void add_global_console();
 
 
@@ -96,6 +111,53 @@ namespace godot {
         enum {
 		    PROP_DEF_DEFAULT = JS_PROP_ENUMERABLE | JS_PROP_CONFIGURABLE,
 	    };
+
+        _FORCE_INLINE_ static real_t js_to_number(JSContext *ctx, const JSValueConst &p_val) {
+            double_t v = 0;
+            JS_ToFloat64(ctx, &v, p_val);
+            return real_t(v);
+	    }
+        _FORCE_INLINE_ static String js_to_string(JSContext *ctx, const JSValueConst &p_val) {
+            String ret;
+            size_t len = 0;
+            const char *utf8 = JS_ToCStringLen(ctx, &len, p_val);
+            ret.parse_utf8(utf8, len);
+            JS_FreeCString(ctx, utf8);
+            return ret;
+        }
+        _FORCE_INLINE_ static bool js_to_bool(JSContext *ctx, const JSValueConst &p_val) {
+            return JS_ToBool(ctx, p_val);
+        }
+        _FORCE_INLINE_ static int32_t js_to_int(JSContext *ctx, const JSValueConst &p_val) {
+            int32_t i;
+            JS_ToInt32(ctx, &i, p_val);
+            return i;
+        }
+        _FORCE_INLINE_ static uint32_t js_to_uint(JSContext *ctx, const JSValueConst &p_val) {
+            uint32_t u;
+            JS_ToUint32(ctx, &u, p_val);
+            return u;
+        }
+        _FORCE_INLINE_ static int64_t js_to_int64(JSContext *ctx, const JSValueConst &p_val) {
+            int64_t i;
+            JS_ToInt64(ctx, &i, p_val);
+            return i;
+        }
+        _FORCE_INLINE_ static uint64_t js_to_uint64(JSContext *ctx, const JSValueConst &p_val) {
+            uint64_t i;
+            JS_ToIndex(ctx, &i, p_val);
+            return i;
+        }
+        _FORCE_INLINE_ static JSValue to_js_number(JSContext *ctx, real_t p_val) {
+            return JS_NewFloat64(ctx, double(p_val));
+        }
+        _FORCE_INLINE_ static JSValue to_js_string(JSContext *ctx, const String &text) {
+            CharString utf8 = text.utf8();
+            return JS_NewStringLen(ctx, utf8.get_data(), utf8.length());
+        }
+        _FORCE_INLINE_ static JSValue to_js_bool(JSContext *ctx, bool p_val) {
+            return JS_NewBool(ctx, p_val);
+        }
     };
 }
 

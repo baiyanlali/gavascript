@@ -47,7 +47,7 @@ export class Node {
   }
 
   insert = (node) => {
-    console.log(this.content, node.content)
+    // console.log(this.content, node.content)
     if (this.indent < node.indent) {
       this.children.push(node);
       node.parent = this;
