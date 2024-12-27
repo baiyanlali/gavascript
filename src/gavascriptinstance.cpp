@@ -275,35 +275,35 @@ JSClassID godot::GavaScriptInstance::register_class(const StringName *p_cls)
 	// methods
 	HashMap<StringName, JSValue> methods;
 	{
+		// https://docs.godotengine.org/en/stable/classes/class_classdb.html#class-classdb-method-class-get-method-list
+		// Returns an array with all the methods of class or its ancestry if no_inheritance is false. 
+		// Every element of the array is a Dictionary with the following keys: 
+		// args, default_args, flags, id, name, return: (class_name, hint, hint_string, name, type, usage)
 		auto method_map = ClassDB::class_get_method_list(*p_cls);
 		godot_methods.resize(internal_godot_method_id + method_map.size());
 
 		for (int i = 0; i < method_map.size(); i++)
 		{
-			
-		}
-		
-
-		for (const KeyValue<StringName, MethodBind *> &pair : method_map) {
-			if (*p_cls == "Object") {
+			Dictionary method_info = method_map[i];
+			String method_name = method_info["name"];
+			if((*p_cls) == String("Object") && method_name == String("connect"))
+			{
 				const char *connect = "connect";
-				if (pair.key == connect) {
-					JSValue func = JS_NewCFunction(ctx, godot_object_method_connect, connect, 3);
-					JS_DefinePropertyValueStr(ctx, data.prototype, connect, func, PROP_DEF_DEFAULT);
-					continue;
-				}
+				JSValue func = JS_NewCFunction(ctx, godot_object_method_connect, connect, 3);
+				JS_DefinePropertyValueStr(ctx, data.prototype, connect, func, PROP_DEF_DEFAULT);
+				continue;
 			}
 
 			MethodBind *mb = pair.value;
 			godot_methods.set(internal_godot_method_id, mb);
 			CharString name = String(pair.key).utf8();
-			JSValue method = JS_NewCFunctionMagic(ctx, &QuickJSBinder::object_method, name.get_data(), mb->get_argument_count(), JS_CFUNC_generic_magic, internal_godot_method_id);
+			JSValue method = JS_NewCFunctionMagic(ctx, &GavaScriptInstance::object_method, name.get_data(), mb->get_argument_count(), JS_CFUNC_generic_magic, internal_godot_method_id);
 			JS_DefinePropertyValueStr(ctx, data.prototype, name.get_data(), method, PROP_DEF_DEFAULT);
 			methods.insert(pair.key, method);
 			++internal_godot_method_id;
 		}
 
-		if (*p_cls == "Object") {
+		if (*p_cls == String("Object")) {
 			// toString()
 			JSValue to_string_func = JS_NewCFunction(ctx, godot_to_string, TO_STRING_LITERAL, 0);
 			JS_DefinePropertyValueStr(ctx, data.prototype, TO_STRING_LITERAL, to_string_func, PROP_DEF_DEFAULT);
@@ -316,7 +316,22 @@ JSClassID godot::GavaScriptInstance::register_class(const StringName *p_cls)
 
 	// properties
 	{
+		// https://docs.godotengine.org/en/stable/classes/class_classdb.html#class-classdb-method-class-get-property-list
 		auto property_setget = ClassDB::class_get_property_list(*p_cls);
+		/*
+		[
+		{ "name": "_import_path", "class_name": &"", "type": 22, "hint": 0, "hint_string": "", "usage": 10 }, 
+		{ "name": "name", "class_name": &"", "type": 21, "hint": 0, "hint_string": "", "usage": 0 }, 
+		{ "name": "unique_name_in_owner", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 2 }
+		]
+		*/
+		for (int i = 0; i < property_setget.size(); i++)
+		{
+			Dictionary prop_info = property_setget[i];
+			const String prop_name = prop_info["name"];
+		}
+		
+		
 		for (const KeyValue<StringName, ClassDB::PropertySetGet> &i : property_setget) {
 			const StringName &prop_name = i.key;
 			const ClassDB::PropertySetGet &prop = i.value;
@@ -377,6 +392,7 @@ JSClassID godot::GavaScriptInstance::register_class(const StringName *p_cls)
 	JS_DefinePropertyValue(ctx, data.prototype, js_key_godot_classid, JS_NewInt32(ctx, data.class_id), PROP_DEF_DEFAULT);
 	JS_DefinePropertyValue(ctx, data.constructor, js_key_godot_classid, JS_NewInt32(ctx, data.class_id), PROP_DEF_DEFAULT);
 
+	
 	// constants
 	for (const KeyValue<StringName, int64_t> &pair : p_cls->constant_map) {
 		JSAtom atom = get_atom(ctx, pair.key);
