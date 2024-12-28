@@ -6,6 +6,7 @@
 #include <godot_cpp/templates/hash_set.hpp>
 #include <godot_cpp/templates/vector.hpp>
 #include <godot_cpp/classes/resource.hpp>
+#include <convert_js_to_godot.h>
 
 #define JS_HIDDEN_SYMBOL(x) ("\xFF" x)
 #define BINDING_DATA_FROM_JS(ctx, p_val) (JavaScriptGCHandler *)JS_GetOpaque((p_val), QuickJSBinder::get_origin_class_id((ctx)))
@@ -16,7 +17,7 @@
 #define PROP_NAME_CONSOLE_LOG_OBJECT_TO_JSON "LOG_OBJECT_TO_JSON"
 #define ENDL "\r\n"
 
-namespace godot {
+namespace gavascript {
     
     struct JavaScriptError {
         int line;
@@ -38,10 +39,6 @@ namespace godot {
         GDCLASS(GavaScriptInstance, Node)
     
     protected:
-        static int get_js_array_length(JSContext *ctx, JSValue p_val);
-        static void get_own_property_names(JSContext *ctx, JSValue p_object, HashSet<String> *r_list);
-        static Dictionary js_to_dictionary(JSContext *ctx, const JSValue &p_val, List<void *> &stack);
-        static Variant var_to_variant(JSContext *ctx, JSValue p_val);
         static String resolve_module_file(const String &file);
         static JSModuleDef *js_module_loader(JSContext *ctx, const char *module_name, void *opaque);
 
@@ -94,19 +91,6 @@ namespace godot {
 
         static JSValue console_log(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic);
 
-        enum {
-		__JS_ATOM_NULL = JS_ATOM_NULL,
-        #if !(defined(EMSCRIPTEN) || defined(_MSC_VER))
-        #define CONFIG_ATOMICS
-        #endif
-        #define DEF(name, str) JS_ATOM_##name,
-        #include "../thirdparty/quickjs/quickjs-atom.h"
-        #undef DEF
-        #ifdef CONFIG_ATOMICS
-        #undef CONFIG_ATOMICS
-        #endif
-                JS_ATOM_END, 
-        };
 
         enum {
 		    PROP_DEF_DEFAULT = JS_PROP_ENUMERABLE | JS_PROP_CONFIGURABLE,

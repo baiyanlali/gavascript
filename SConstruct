@@ -4,7 +4,7 @@ import sys
 # from SCons.Script import SConscript, ARGUMENTS, Action, Copy, CacheDir
 env = SConscript("godot-cpp/SConstruct")
 
-CacheDir('cache')
+# CacheDir('cache')
 
 # For reference:
 # - CCFLAGS are compilation flags shared between C and C++

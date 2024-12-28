@@ -3,7 +3,9 @@
 #include <gdextension_interface.h>
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
-
+#include "JSObject.h"
+#include "JSMetaObject.h"
+#include "JSFunction.h"
 using namespace godot;
 
 void initialize_gavascript_module(ModuleInitializationLevel p_level) {
@@ -11,7 +13,10 @@ void initialize_gavascript_module(ModuleInitializationLevel p_level) {
 		return;
 	}
 
-	GDREGISTER_CLASS(GavaScriptInstance);
+	GDREGISTER_CLASS(gavascript::GavaScriptInstance);
+	GDREGISTER_CLASS(gavascript::JSMetaObject);
+	// GDREGISTER_CLASS(gavascript::JSObject);
+	GDREGISTER_CLASS(gavascript::JSFunction);
 }
 
 void uninitialize_gavascript_module(ModuleInitializationLevel p_level) {
