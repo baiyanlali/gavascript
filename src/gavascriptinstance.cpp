@@ -79,7 +79,7 @@ void gavascript::GavaScriptInstance::start(String module_name)
 Variant GavaScriptInstance::run_script(String script) {
     String script_str = script;
     const char* jscode = script_str.utf8().get_data();
-    JSValue result = JS_Eval(context, jscode, strlen(jscode), "<quickjs>", JS_EVAL_TYPE_MODULE);
+    JSValue result = JS_Eval(context, jscode, strlen(jscode), "<quickjs>", JS_EVAL_TYPE_GLOBAL);
 
 	if(JS_IsException(result)){
 		JSValue e = JS_GetException(context);
@@ -90,8 +90,6 @@ Variant GavaScriptInstance::run_script(String script) {
 		return Variant();
 		
 	}
-    UtilityFunctions::print("var_to_variant " + String::num_int64(result.tag));
-
     return var_to_variant(context, result);
 }
 

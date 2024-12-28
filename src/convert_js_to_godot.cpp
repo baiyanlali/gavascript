@@ -10,8 +10,6 @@ namespace gavascript{
     {
         int64_t tag = JS_VALUE_GET_TAG(p_val);
 
-        UtilityFunctions::print("var_to_variant " + String::num_int64(tag));
-
         switch (tag) {
             case JS_TAG_INT:
                 return Variant(JS_VALUE_GET_INT(p_val));
@@ -37,7 +35,6 @@ namespace gavascript{
                     }
                     return arr;
                 } else if (JS_IsFunction(ctx, p_val)) {
-                    UtilityFunctions::print("IS JSFunction");
                     JSFunction *func = memnew(JSFunction(ctx, p_val, JS_UNDEFINED));
                     return func;
                     // JS_Call()
@@ -48,7 +45,6 @@ namespace gavascript{
                     // TODO: Implement
                     return Variant();
                 } else { // Plain Object as Dictionary
-                    UtilityFunctions::print("IS Dictionary");
                     List<void *> stack;
                     return js_to_dictionary(ctx, p_val, stack);
                 }
