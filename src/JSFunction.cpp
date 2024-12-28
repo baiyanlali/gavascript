@@ -20,7 +20,6 @@ Variant gavascript::JSFunction::call(const Array& args)
     for(int i = 0; i < arg_count; i++){
         argv[i] = variant_to_var(context, args[i]);
     }
-
     JSValue result = JS_Call(context, object, this_object, arg_count, argv);
 
     for(int i = 0; i < arg_count; i++){

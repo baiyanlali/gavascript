@@ -37,12 +37,6 @@ namespace gavascript{
                 } else if (JS_IsFunction(ctx, p_val)) {
                     JSFunction *func = memnew(JSFunction(ctx, p_val, JS_UNDEFINED));
                     return func;
-                    // JS_Call()
-                    // JSValue function = JS_FunctionToString(ctx, p_val);
-                    // String ret = js_to_string(ctx, function);
-                    // JS_FreeValue(ctx, function);
-                    // return ret;
-                    // TODO: Implement
                     return Variant();
                 } else { // Plain Object as Dictionary
                     List<void *> stack;
