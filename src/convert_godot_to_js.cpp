@@ -1,7 +1,26 @@
 #include "convert_godot_to_js.h"
-
+#include "convert_js_to_godot.h"
+#include <godot_cpp/variant/callable.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
+#include <godot_cpp/templates/vector.hpp>
+#include "GDFunction.h"
 namespace gavascript{
-    JSValue variant_to_var(JSContext *ctx, const Variant &value)
+
+    // JSValue MagicFunction(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic) {
+    //     // Callable callable = *static_cast<Callable*>(JS_GetOpaque(this_val, 0));
+    //     // Variant* args = (Variant*)alloca(sizeof(Variant) * argc);
+
+    //     // for (int i = 0; i < argc; i++) {
+    //     //     args[i] = (var_to_variant(ctx, argv[i]));
+    //     // }
+    //     // Variant ret = callable.call(args);
+    //     // return variant_to_var(ctx, ret);
+    //     // return JS_UNDEFINED;
+    //     // UtilityFunctions::print("Magic Function Called");
+    //     return JS_UNDEFINED;
+    // }
+
+    JSValue variant_to_var(JSContext *ctx, const Variant value)
     {
         switch (value.get_type()) {
             case Variant::BOOL:
@@ -48,7 +67,21 @@ namespace gavascript{
                 }
                 return obj;
             }
-            case Variant::CALLABLE:
+            case Variant::CALLABLE: {
+                UtilityFunctions::print("Create Callable Binding");
+                JSValue callable = JS_NewObjectClass(ctx, GDFunction::class_id);
+                GDFunction* func = new GDFunction();
+                func->callable = value;
+                JS_SetOpaque(callable, func);
+                return callable;
+
+                // callable->callable = value;
+                // JSAtom atom = JS_NewAtom(ctx, "call");
+                // JSValue obj = JS_NewObject(ctx);
+                // JS_SetProperty(ctx, obj, atom, JS_NewCFunctionMagic(ctx, GDFunction::MagicFunction, NULL, 0, JS_CFUNC_generic_magic, 0));
+                // return obj;
+            }
+                
             case Variant::SIGNAL:
             //TODO
             case Variant::NIL:

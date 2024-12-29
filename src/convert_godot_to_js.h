@@ -7,7 +7,7 @@
 
 using namespace godot;
 namespace gavascript {
-    JSValue variant_to_var(JSContext *ctx, const Variant& value);
+    JSValue variant_to_var(JSContext *ctx, const Variant value);
 
     _FORCE_INLINE_ static JSValue to_js_number(JSContext *ctx, real_t p_val) {
             return JS_NewFloat64(ctx, double(p_val));

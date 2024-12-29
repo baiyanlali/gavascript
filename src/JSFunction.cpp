@@ -53,10 +53,10 @@ namespace gavascript{
 
     String JSFunction::_to_string() const
     {
-        JSValue name = JS_GetPropertyStr(context, object, "name");
+        // JSValue name = JS_GetPropertyStr(context, object, "name");
         JSValue toString = JS_GetPropertyStr(context, object, "toString");
         JSValue result = JS_Call(context, toString, object, 0, NULL);
-        return "[JS Function]: " + js_to_string(context, name) + js_to_string(context, result);
+        return "[JS Function]: " + js_to_string(context, result);
         // return js_to_string( context, JS_GetPropertyStr(context, object, "name"));
     }
 

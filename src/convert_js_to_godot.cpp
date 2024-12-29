@@ -3,6 +3,7 @@
 #include "JSObject.h"
 #include <godot_cpp/core/memory.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include "GDFunction.h"
 typedef struct JSObject JSObject;
 
 namespace gavascript{
@@ -38,7 +39,13 @@ namespace gavascript{
                 } else if (JS_IsFunction(ctx, p_val)) {
                     JSFunction *func = memnew(JSFunction(ctx, p_val, JS_UNDEFINED));
                     return func;
-                } else { 
+                } else if (GDFunction::is_instance(ctx, p_val)) {
+                    // UtilityFunctions::print("Get GDFunction");
+                    GDFunction *func = static_cast<GDFunction *>(JS_GetOpaque(p_val, GDFunction::class_id));
+                    return func->callable;
+                }
+                 else { 
+                    // UtilityFunctions::print("Get JSObject");
                     JSObject *obj = memnew(JSObject(ctx, p_val));
                     return obj;
                     // // Plain Object as Dictionary

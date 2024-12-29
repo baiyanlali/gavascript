@@ -5,6 +5,7 @@
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/classes/file_access.hpp>
 #include <quickjs.h>
+#include "GDFunction.h"
 
 using namespace godot;
 
@@ -35,7 +36,7 @@ GavaScriptInstance::GavaScriptInstance() {
 	global_object = JS_GetGlobalObject(context);
 
 	godot_object = JS_NewObject(context);
-
+	GDFunction::register_class(context);
 
 
 	add_global_console();

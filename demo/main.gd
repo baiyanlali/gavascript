@@ -9,5 +9,14 @@ func _ready() -> void:
 	print(a.name)
 	print(a.name.call())
 	print(a.sea)
-	a.sea = 5
+	a.sea = func(): return 3
 	print(a.sea)
+	var c: Callable = a.sea
+	print(c.call())
+	print(a.sea.call())
+	gava_script_instance.run_script('console.log(a.sea.call())')
+	#print(a.sea.call.call())
+	#print(a.sea.call.call())
+	#print(a.sea.call(1))
+	#print(func(): return 1)
+	#pass
