@@ -54,13 +54,11 @@ namespace gavascript {
             JSClassDef jsclass;
             const ClassBindData *base_class;
 	    };
-
         JSValue godot_object;
         JSValue global_object;
         JSValue console_object;
         HashMap<String, ModuleCache> module_cache;
         static HashMap<String, const char *> class_remap;
-
         const ClassBindData *godot_object_class;
         const ClassBindData *godot_reference_class;
         HashMap<JSClassID, ClassBindData> class_bindings;

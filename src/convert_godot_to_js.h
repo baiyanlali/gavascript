@@ -17,6 +17,13 @@ namespace gavascript {
         CharString utf8 = text.utf8();
         return JS_NewStringLen(ctx, utf8.get_data(), utf8.length());
     }
+
+    _FORCE_INLINE_ JSAtom get_atom(JSContext *ctx, const StringName &p_key) {
+        String name = p_key;
+        CharString name_str = name.utf8();
+        JSAtom atom = JS_NewAtom(ctx, name_str.get_data());
+        return atom;
+    }
 }
 
 #endif

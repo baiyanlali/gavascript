@@ -1,5 +1,6 @@
 #include "convert_js_to_godot.h"
 #include "JSFunction.h"
+#include "JSObject.h"
 #include <godot_cpp/core/memory.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 typedef struct JSObject JSObject;
@@ -37,10 +38,12 @@ namespace gavascript{
                 } else if (JS_IsFunction(ctx, p_val)) {
                     JSFunction *func = memnew(JSFunction(ctx, p_val, JS_UNDEFINED));
                     return func;
-                    return Variant();
-                } else { // Plain Object as Dictionary
-                    List<void *> stack;
-                    return js_to_dictionary(ctx, p_val, stack);
+                } else { 
+                    JSObject *obj = memnew(JSObject(ctx, p_val));
+                    return obj;
+                    // // Plain Object as Dictionary
+                    // List<void *> stack;
+                    // return js_to_dictionary(ctx, p_val, stack);
                 }
             } break;
             case JS_TAG_NULL:

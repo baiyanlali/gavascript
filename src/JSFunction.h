@@ -25,7 +25,13 @@ namespace gavascript {
             this->this_object = this_object;
         };
 
-        Variant call(const Array& args);
+        Variant callv(const Array& args);
+        Variant call(const Variant **args, GDExtensionInt arg_count, GDExtensionCallError &error);
+
+        String _to_string() const;
+
+        operator String() const;
+
     protected:
         static void _bind_methods();
         JSValue this_object;

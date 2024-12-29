@@ -5,7 +5,9 @@ extends Node2D
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	#gava_script_instance.start('javascript/main.js')
-	var a: JSFunction = gava_script_instance.run_script('const a = (c, d)=> {return c+d;}; a')
-	print(a.call([1, 2]))
-	print(a)
-	pass # Replace with function body.
+	var a: JSObject = gava_script_instance.run_script('const a = { "name": ()=> {return "kitty"}, "sea": 1}; a')
+	print(a.name)
+	print(a.name.call())
+	print(a.sea)
+	a.sea = 5
+	print(a.sea)

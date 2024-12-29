@@ -15,7 +15,7 @@ void initialize_gavascript_module(ModuleInitializationLevel p_level) {
 
 	GDREGISTER_CLASS(gavascript::GavaScriptInstance);
 	GDREGISTER_CLASS(gavascript::JSMetaObject);
-	// GDREGISTER_CLASS(gavascript::JSObject);
+	GDREGISTER_CLASS(gavascript::JSObject);
 	GDREGISTER_CLASS(gavascript::JSFunction);
 }
 

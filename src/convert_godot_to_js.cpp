@@ -48,6 +48,9 @@ namespace gavascript{
                 }
                 return obj;
             }
+            case Variant::CALLABLE:
+            case Variant::SIGNAL:
+            //TODO
             case Variant::NIL:
                 return JS_NULL;
             default:
