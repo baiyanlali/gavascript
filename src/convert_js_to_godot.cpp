@@ -135,4 +135,28 @@ namespace gavascript{
         js_free_rt(JS_GetRuntime(ctx), props);
     }
 
+    String error_to_string(const JavaScriptError &p_error)
+    {
+    String message = "JavaScript Error: \n";
+    if (p_error.stack.size()) {
+        message += p_error.stack[0];
+    }
+    message += p_error.message;
+    for (int i = 1; i < p_error.stack.size(); i++) {
+        message += p_error.stack[i];
+    }
+    return message;
+    }
+    void dump_exception(JSContext *ctx, const JSValue &p_exception, JavaScriptError *r_error)
+    {
+        JSValue err_msg = JS_GetProperty(ctx, p_exception, JS_ATOM_message);
+        JSValue err_stack = JS_GetProperty(ctx, p_exception, JS_ATOM_stack);
+
+        r_error->message = js_to_string(ctx, err_msg);
+        r_error->stack.push_back(js_to_string(ctx, err_stack));
+        r_error->column = 0;
+
+        JS_FreeValue(ctx, err_msg);
+        JS_FreeValue(ctx, err_stack);
+    }
 }

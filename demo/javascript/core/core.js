@@ -238,7 +238,7 @@ export class VGDLParser {
         this.game.terminations.push(new sclass(args));
       } catch (e) {
         throw new Error(
-          `Parse Termination Fail at Line ${t.line}:\n ${t.content} \n ${e.toString()}`,
+          `Parse Termination Fail at Line ${t.line}:\n ${t.content} \n ${e.toString()} \n ${e.stack}`,
         );
       }
     });
@@ -358,7 +358,7 @@ export class VGDLParser {
         }
       } catch (e) {
         throw new Error(
-          `Parse Sprite Fail at Line ${s.line}: \n ${s.content} \n ${e.toString()}`,
+          `Parse Sprite Fail at Line ${s.line}: \n ${s.content} \n ${e.toString()}  \n ${e.stack}`,
         );
       }
     });

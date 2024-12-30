@@ -18,14 +18,6 @@
 #define ENDL "\r\n"
 
 namespace gavascript {
-    
-    struct JavaScriptError {
-        int line;
-        int column;
-        String message;
-        String file;
-        Vector<String> stack;
-    };
 
     struct ModuleCache {
 		int flags = 0;
@@ -73,8 +65,9 @@ namespace gavascript {
 
         void _process(double delta) override;
         void _ready() override;
-        void start(String module_name);
+        Variant start(String module_name);
         Variant run_script(String script);
+        Variant run_script_in_module(String script);
         Variant get_global(String name);
 
         void dump_exception(JSContext *ctx, const JSValue &p_exception, JavaScriptError *r_error);

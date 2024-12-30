@@ -1,7 +1,7 @@
 #include "JSObject.h"
 #include "convert_godot_to_js.h"
 #include "convert_js_to_godot.h"
-
+#include <godot_cpp/variant/utility_functions.hpp>
 namespace gavascript{
 
     void gavascript::JSObject::_bind_methods()
@@ -38,7 +38,39 @@ namespace gavascript{
 
     String gavascript::JSObject::_to_string() const
     {
-        return "[JS Object]: " + js_to_string(context, JS_GetPropertyStr(context, object, "name"));
+        JSPropertyEnum *props;
+        uint32_t prop_count;
+        int ret = JS_GetOwnPropertyNames(context, &props, &prop_count, object, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK);
+
+        if (ret < 0) {
+            return "[JS Object]: {Error}";
+        }
+
+        String str = "[JS Object]: {";
+
+        for (uint32_t i = 0; i < prop_count; i++) {
+            JSValue key = JS_AtomToValue(context, props[i].atom);
+            String name = js_to_string(context, key);
+            str += name + ", ";
+            JS_FreeAtom(context, props[i].atom);
+            JS_FreeValue(context, key);
+        }
+
+        return str;
+
+        // JSValue val = JS_GetPropertyStr(context, object, "default");
+        // val = JS_GetPropertyStr(context, val, "sea");
+        // return "[JS Object]: {" + js_to_string(context, val) + "}";
+        // auto get_property_name = "console.log('hello world');console.log(this.sea);Object.keys(this).toString();";
+        // JSValue properties = JS_EvalThis(context, object, get_property_name, strlen(get_property_name) , "<JSObject::_to_string>", JS_EVAL_TYPE_GLOBAL);
+        // if(JS_IsException(properties)){
+        //     JSValue e = JS_GetException(context);
+        //     JavaScriptError err;
+        //     dump_exception(context, e, &err);
+        //     UtilityFunctions::printerr(error_to_string(err));
+        //     return "[JS Object]: {Error}";
+        // }
+        // return "[JS Object]: {" + js_to_string(context, properties) + "}";
     }
 
 }

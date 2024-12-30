@@ -17,6 +17,7 @@ HashMap<String, const char *> GavaScriptInstance::class_remap;
 
 void GavaScriptInstance::_bind_methods() {
     ClassDB::bind_method(D_METHOD("run_script", "script"), &GavaScriptInstance::run_script);
+    ClassDB::bind_method(D_METHOD("run_script_in_module", "script"), &GavaScriptInstance::run_script_in_module);
     ClassDB::bind_method(D_METHOD("start", "module_name"), &GavaScriptInstance::start);
     ClassDB::bind_method(D_METHOD("get_global", "js_variant"), &GavaScriptInstance::get_global);
 	// ClassDB::bind_method(D_METHOD("set_amplitude", "p_amplitude"), &GavaScriptInstance::set_amplitude);
@@ -60,13 +61,14 @@ void GavaScriptInstance::_ready() {
 
 }
 
-void gavascript::GavaScriptInstance::start(String module_name)
+Variant gavascript::GavaScriptInstance::start(String module_name)
 {
 	String file = resolve_module_file(module_name);
-	ERR_FAIL_COND_MSG(file.is_empty(), "Failed to resolve module: '" + module_name + "'.");
-
+	// ERR_FAIL_COND_MSG(file.is_empty(), "Failed to resolve module: '" + module_name + "'.");
+	ERR_FAIL_COND_V_MSG(file.is_empty(), Variant(), "Failed to open module: '" + file + "'.");
 	auto fileAccess = FileAccess::open(file, FileAccess::READ);
-	ERR_FAIL_COND_MSG(fileAccess.is_null(), "Failed to open module: '" + file + "'.");
+	// ERR_FAIL_COND_MSG(fileAccess.is_null(), "Failed to open module: '" + file + "'.");
+	ERR_FAIL_COND_V_MSG(fileAccess.is_null(), Variant(), "Failed to open module: '" + file + "'.");
 
 	String content = fileAccess->get_as_text();
 
@@ -77,8 +79,9 @@ void gavascript::GavaScriptInstance::start(String module_name)
 		JavaScriptError err;
 		dump_exception(context, e, &err);
 		UtilityFunctions::printerr(error_to_string(err));
-		return;
+		return Variant();
 	}
+	return var_to_variant(context, val);
 }
 
 Variant GavaScriptInstance::run_script(String script) {
@@ -98,6 +101,28 @@ Variant GavaScriptInstance::run_script(String script) {
     return var_to_variant(context, result);
 }
 
+Variant GavaScriptInstance::run_script_in_module(String script)
+{
+    String script_str = script;
+    const char* jscode = script_str.utf8().get_data();
+    JSValue result = JS_Eval(context, jscode, strlen(jscode), "<quickjs>", JS_EVAL_TYPE_MODULE);
+
+	if(JS_IsException(result)){
+		JSValue e = JS_GetException(context);
+		JavaScriptError err;
+		dump_exception(context, e, &err);
+		
+		UtilityFunctions::printerr(error_to_string(err));
+		return Variant();
+		
+	}
+	JSValue module_namespace = JS_GetModuleNamespace(context, result);
+    if (JS_IsException(module_namespace)) {
+        printf("Failed to get module namespace.\n");
+    }
+    return var_to_variant(context, result);
+}
+
 Variant GavaScriptInstance::get_global(String name)
 {
 	// JSValue global = JS_GetGlobalObject(context);
@@ -108,6 +133,10 @@ Variant GavaScriptInstance::get_global(String name)
 		dump_exception(context, e, &err);
 		UtilityFunctions::printerr(error_to_string(err));
 		return Variant();
+	}
+
+	if(JS_IsNull(ret) || JS_IsUndefined(ret)){
+		UtilityFunctions::printerr("Global variable '" + name + "' not found.");
 	}
     return var_to_variant(context, ret);
 }
@@ -394,6 +423,10 @@ void gavascript::GavaScriptInstance::add_global_console() {
 	JSValue log = JS_NewCFunctionMagic(context, console_log, "log", 0, JS_CFUNC_generic_magic, 0);
 	JS_DefinePropertyValueStr(context, global_object, "console", console, PROP_DEF_DEFAULT);
 	JS_DefinePropertyValueStr(context, console, "log", log, PROP_DEF_DEFAULT);
+	JS_DefinePropertyValueStr(context, console, "debug", log, PROP_DEF_DEFAULT);
+	JS_DefinePropertyValueStr(context, console, "error", log, PROP_DEF_DEFAULT);
+	JS_DefinePropertyValueStr(context, console, "trace", log, PROP_DEF_DEFAULT);
+	JS_DefinePropertyValueStr(context, console, "assert", log, PROP_DEF_DEFAULT);
 	console_object = JS_DupValue(context, console);
 }
 
