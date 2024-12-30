@@ -75,6 +75,7 @@ namespace gavascript {
         void _ready() override;
         void start(String module_name);
         Variant run_script(String script);
+        Variant get_global(String name);
 
         void dump_exception(JSContext *ctx, const JSValue &p_exception, JavaScriptError *r_error);
         String error_to_string(const JavaScriptError &p_error);

@@ -18,6 +18,7 @@ HashMap<String, const char *> GavaScriptInstance::class_remap;
 void GavaScriptInstance::_bind_methods() {
     ClassDB::bind_method(D_METHOD("run_script", "script"), &GavaScriptInstance::run_script);
     ClassDB::bind_method(D_METHOD("start", "module_name"), &GavaScriptInstance::start);
+    ClassDB::bind_method(D_METHOD("get_global", "js_variant"), &GavaScriptInstance::get_global);
 	// ClassDB::bind_method(D_METHOD("set_amplitude", "p_amplitude"), &GavaScriptInstance::set_amplitude);
 
 	// ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "amplitude"), "set_amplitude", "get_amplitude");
@@ -46,6 +47,9 @@ GavaScriptInstance::GavaScriptInstance() {
 GavaScriptInstance::~GavaScriptInstance() {
     JS_FreeContext(context);
     JS_FreeRuntime(runtime);
+
+	context = NULL;
+	runtime = NULL;
 }
 
 void GavaScriptInstance::_process(double delta) {
@@ -92,6 +96,20 @@ Variant GavaScriptInstance::run_script(String script) {
 		
 	}
     return var_to_variant(context, result);
+}
+
+Variant GavaScriptInstance::get_global(String name)
+{
+	// JSValue global = JS_GetGlobalObject(context);
+	JSValue ret = JS_GetPropertyStr(context, global_object, name.utf8().get_data());
+	if(JS_IsException(ret)){
+		JSValue e = JS_GetException(context);
+		JavaScriptError err;
+		dump_exception(context, e, &err);
+		UtilityFunctions::printerr(error_to_string(err));
+		return Variant();
+	}
+    return var_to_variant(context, ret);
 }
 
 void gavascript::GavaScriptInstance::dump_exception(JSContext *ctx, const JSValue &p_exception, JavaScriptError *r_error) {
