@@ -1,8 +1,12 @@
-[gd_scene load_steps=2 format=3 uid="uid://b3xr571u554c6"]
+[gd_scene load_steps=3 format=3 uid="uid://b3xr571u554c6"]
 
 [ext_resource type="Script" path="res://main.gd" id="1_qjn3m"]
+[ext_resource type="Script" path="res://godot_frontend.gd" id="2_d046p"]
 
 [node name="Node2D" type="Node2D"]
 script = ExtResource("1_qjn3m")
 
 [node name="GavaScriptInstance" type="GavaScriptInstance" parent="."]
+
+[node name="GodotFrontend" type="Node" parent="."]
+script = ExtResource("2_d046p")

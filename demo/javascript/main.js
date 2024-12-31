@@ -15,5 +15,6 @@ try {
 // const tickPerSecond = 1/5;
 // console.log(game.FPS)
 console.log("start gavascript")
-
+globalThis.game = game
+globalThis.parser = parser
 export default { parser, game }

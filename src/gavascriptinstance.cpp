@@ -4,7 +4,7 @@
 #include <godot_cpp/core/method_bind.hpp>
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/classes/file_access.hpp>
-#include <quickjs.h>
+#include "quickjs.h"
 #include "GDFunction.h"
 
 using namespace godot;
@@ -116,10 +116,10 @@ Variant GavaScriptInstance::run_script_in_module(String script)
 		return Variant();
 		
 	}
-	JSValue module_namespace = JS_GetModuleNamespace(context, result);
-    if (JS_IsException(module_namespace)) {
-        printf("Failed to get module namespace.\n");
-    }
+	// JSValue module_namespace = JS_GetModuleNamespace(context, result);
+    // if (JS_IsException(module_namespace)) {
+    //     printf("Failed to get module namespace.\n");
+    // }
     return var_to_variant(context, result);
 }
 
@@ -139,6 +139,13 @@ Variant GavaScriptInstance::get_global(String name)
 		UtilityFunctions::printerr("Global variable '" + name + "' not found.");
 	}
     return var_to_variant(context, ret);
+}
+
+void GavaScriptInstance::set_global(String name, Variant value)
+{
+	JSValue val = variant_to_var(context, value);
+	JS_SetPropertyStr(context, global_object, name.utf8().get_data(), val);
+	JS_FreeValue(context, val);
 }
 
 void gavascript::GavaScriptInstance::dump_exception(JSContext *ctx, const JSValue &p_exception, JavaScriptError *r_error) {
@@ -420,14 +427,42 @@ JSAtom gavascript::GavaScriptInstance::get_atom(JSContext *ctx, const StringName
 void gavascript::GavaScriptInstance::add_global_console() {
 	JSValue console = JS_NewObject(context);
 	// JSValue log = JS_NewCFunctionMagic(context, console_log, "log", JS_CFUNC_generic_magic);
-	JSValue log = JS_NewCFunctionMagic(context, console_log, "log", 0, JS_CFUNC_generic_magic, 0);
+	JSValue log = JS_NewCFunctionMagic(context, console_log, "log", 0, JS_CFUNC_generic_magic, CONSOLE_LOG);
+	JSValue debug = JS_NewCFunctionMagic(context, console_log, "debug", 0, JS_CFUNC_generic_magic, CONSOLE_DEBUG);
+	JSValue error = JS_NewCFunctionMagic(context, console_log, "error", 0, JS_CFUNC_generic_magic, CONSOLE_ERROR);
+	JSValue trace = JS_NewCFunctionMagic(context, console_log, "trace", 0, JS_CFUNC_generic_magic, CONSOLE_TRACE);
+	JSValue assert = JS_NewCFunctionMagic(context, console_log, "assert", 0, JS_CFUNC_generic_magic, CONSOLE_ASSERT);
 	JS_DefinePropertyValueStr(context, global_object, "console", console, PROP_DEF_DEFAULT);
 	JS_DefinePropertyValueStr(context, console, "log", log, PROP_DEF_DEFAULT);
-	JS_DefinePropertyValueStr(context, console, "debug", log, PROP_DEF_DEFAULT);
-	JS_DefinePropertyValueStr(context, console, "error", log, PROP_DEF_DEFAULT);
-	JS_DefinePropertyValueStr(context, console, "trace", log, PROP_DEF_DEFAULT);
-	JS_DefinePropertyValueStr(context, console, "assert", log, PROP_DEF_DEFAULT);
+	JS_DefinePropertyValueStr(context, console, "debug", debug, PROP_DEF_DEFAULT);
+	JS_DefinePropertyValueStr(context, console, "error", error, PROP_DEF_DEFAULT);
+	JS_DefinePropertyValueStr(context, console, "trace", trace, PROP_DEF_DEFAULT);
+	JS_DefinePropertyValueStr(context, console, "assert", assert, PROP_DEF_DEFAULT);
 	console_object = JS_DupValue(context, console);
+}
+
+JSValue nativeClear(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    return JS_NULL;
+}
+
+const JSCFunctionListEntry godot_funcs[] = {
+	JS_CPPFUNC_DEF("print", 1, nativeClear),
+};
+
+JSModuleDef* GavaScriptInstance::add_godot_module()
+{
+    JSModuleDef *m;
+    m = JS_NewCModule(context, "godot", init_godot_module);
+    if (!m)
+        return NULL;
+    JS_AddModuleExportList(context, m, godot_funcs, countof(godot_funcs));
+    return m;
+}
+
+int GavaScriptInstance::init_godot_module(JSContext *ctx, JSModuleDef *m)
+{
+    return JS_SetModuleExportList(ctx, m, godot_funcs, countof(godot_funcs));
 }
 
 static HashMap<String, String> resolve_path_cache;
@@ -503,6 +538,9 @@ JSModuleDef *gavascript::GavaScriptInstance::js_module_loader(JSContext *ctx, co
 
 JSValue gavascript::GavaScriptInstance::console_log(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic)
 {
+	// TODO: Implement assert
+	if(magic == CONSOLE_ASSERT) return JS_UNDEFINED;
+	if(magic == CONSOLE_DEBUG) return JS_UNDEFINED;
 	Vector<Variant> args;
 	args.resize(argc);
 
@@ -513,7 +551,10 @@ JSValue gavascript::GavaScriptInstance::console_log(JSContext *ctx, JSValue this
 		message += " ";
 	}
 
-	UtilityFunctions::print(message);
+	if(magic == CONSOLE_ERROR) 
+		UtilityFunctions::printerr(message);
+	else
+		UtilityFunctions::print(message);
 	return JS_UNDEFINED;
 }
 }

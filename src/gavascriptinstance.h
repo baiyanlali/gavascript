@@ -17,6 +17,11 @@
 #define PROP_NAME_CONSOLE_LOG_OBJECT_TO_JSON "LOG_OBJECT_TO_JSON"
 #define ENDL "\r\n"
 
+#ifndef countof
+#define countof(x) (sizeof(x) / sizeof((x)[0]))
+#endif
+
+#define JS_CPPFUNC_DEF(name, length, func1) { name, JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE, JS_DEF_CFUNC, 0, { { length, JS_CFUNC_generic, { func1 } } } }
 namespace gavascript {
 
     struct ModuleCache {
@@ -26,6 +31,14 @@ namespace gavascript {
 		JSValue res_value;
 		Ref<Resource> res;
 	};
+
+    enum {
+        CONSOLE_LOG,
+        CONSOLE_DEBUG,
+        CONSOLE_ERROR,
+        CONSOLE_TRACE,
+        CONSOLE_ASSERT,
+    };
     
     class GavaScriptInstance : public Node {
         GDCLASS(GavaScriptInstance, Node)
@@ -69,6 +82,7 @@ namespace gavascript {
         Variant run_script(String script);
         Variant run_script_in_module(String script);
         Variant get_global(String name);
+        void set_global(String name, Variant value);
 
         void dump_exception(JSContext *ctx, const JSValue &p_exception, JavaScriptError *r_error);
         String error_to_string(const JavaScriptError &p_error);
@@ -79,6 +93,9 @@ namespace gavascript {
         void add_godot_classes();
         
         void add_global_console();
+
+        JSModuleDef* add_godot_module();
+        static int init_godot_module(JSContext *ctx, JSModuleDef *m);
 
 
         static JSValue console_log(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic);

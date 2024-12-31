@@ -4,14 +4,15 @@ extends Node2D
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	#var js_module: JSObject = gava_script_instance.start('javascript/main.js')
+	var js_module: JSObject = gava_script_instance.start('javascript/main.js')
 	#print(js_module)
 	
 	#var js_module: JSObject = gava_script_instance.run_script_in_module(
-		#'export default { "name": ()=> {return "kitty"}, "sea": "people moutain people sea"}'
+		#'globalThis.data = { "name": ()=> {return "kitty"}, "sea": "people moutain people sea"}'
 	#)
-	var js_module: JSObject = gava_script_instance.run_script('const a = { "name": ()=> {return "kitty"}, "sea": 1}; a')
-	print(js_module)
+	#var js_module: JSObject = gava_script_instance.run_script('const a = { "name": ()=> {return "kitty"}, "sea": 1}; a')
+	var js_whatever = gava_script_instance.get_global("game")
+	print(js_whatever)
 	
 	#print(gava_script_instance.get_global("game"))
 	#var a: JSObject = gava_script_instance.run_script('const a = { "name": ()=> {return "kitty"}, "sea": 1};')
