@@ -4,21 +4,8 @@
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <godot_cpp/templates/vector.hpp>
 #include "GDFunction.h"
+#include "GDObject.h"
 namespace gavascript{
-
-    // JSValue MagicFunction(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic) {
-    //     // Callable callable = *static_cast<Callable*>(JS_GetOpaque(this_val, 0));
-    //     // Variant* args = (Variant*)alloca(sizeof(Variant) * argc);
-
-    //     // for (int i = 0; i < argc; i++) {
-    //     //     args[i] = (var_to_variant(ctx, argv[i]));
-    //     // }
-    //     // Variant ret = callable.call(args);
-    //     // return variant_to_var(ctx, ret);
-    //     // return JS_UNDEFINED;
-    //     // UtilityFunctions::print("Magic Function Called");
-    //     return JS_UNDEFINED;
-    // }
 
     JSValue variant_to_var(JSContext *ctx, const Variant value)
     {
@@ -34,7 +21,13 @@ namespace gavascript{
                 return to_js_string(ctx, value);
             case Variant::OBJECT: {
                 //TODO
-                throw "custom variant to var for object type Not implemented";
+                UtilityFunctions::print("Create Object Binding");
+                JSValue obj = JS_NewObjectClass(ctx, GDObject::class_id);
+                GDObject* gdobj = new GDObject();
+                gdobj->godot_object = value;
+                JS_SetOpaque(obj, gdobj);
+                return obj;
+                // throw "custom variant to var for object type Not implemented";
                 // Object *obj = value;
                 // if (obj == NULL)
                 // 	return JS_NULL;
@@ -68,7 +61,7 @@ namespace gavascript{
                 return obj;
             }
             case Variant::CALLABLE: {
-                UtilityFunctions::print("Create Callable Binding");
+                // UtilityFunctions::print("Create Callable Binding");
                 JSValue callable = JS_NewObjectClass(ctx, GDFunction::class_id);
                 GDFunction* func = new GDFunction();
                 func->callable = value;

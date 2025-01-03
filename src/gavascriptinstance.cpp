@@ -20,6 +20,7 @@ void GavaScriptInstance::_bind_methods() {
     ClassDB::bind_method(D_METHOD("run_script_in_module", "script"), &GavaScriptInstance::run_script_in_module);
     ClassDB::bind_method(D_METHOD("start", "module_name"), &GavaScriptInstance::start);
     ClassDB::bind_method(D_METHOD("get_global", "js_variant"), &GavaScriptInstance::get_global);
+    ClassDB::bind_method(D_METHOD("set_global", "js_name", "variant"), &GavaScriptInstance::set_global);
 	// ClassDB::bind_method(D_METHOD("set_amplitude", "p_amplitude"), &GavaScriptInstance::set_amplitude);
 
 	// ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "amplitude"), "set_amplitude", "get_amplitude");
@@ -145,7 +146,7 @@ void GavaScriptInstance::set_global(String name, Variant value)
 {
 	JSValue val = variant_to_var(context, value);
 	JS_SetPropertyStr(context, global_object, name.utf8().get_data(), val);
-	JS_FreeValue(context, val);
+	// JS_FreeValue(context, val);
 }
 
 void gavascript::GavaScriptInstance::dump_exception(JSContext *ctx, const JSValue &p_exception, JavaScriptError *r_error) {

@@ -15,8 +15,14 @@ namespace gavascript {
         JS_SetPropertyStr(
             ctx, 
             proto, 
-            "call", 
-            JS_NewCFunctionMagic(ctx, MagicFunction, "call", 0, JS_CFUNC_generic_magic, 0)
+            "get", 
+            JS_NewCFunctionMagic(ctx, get, "get", 0, JS_CFUNC_generic_magic, 0)
+        );
+        JS_SetPropertyStr(
+            ctx, 
+            proto, 
+            "set", 
+            JS_NewCFunctionMagic(ctx, set, "set", 0, JS_CFUNC_generic_magic, 0)
         );
 
         JS_SetClassProto(ctx, class_id, proto);
@@ -38,6 +44,32 @@ namespace gavascript {
         
         return JS_GetClassID(val) == class_id;
     }
+    JSValue GDObject::get(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic)
+    {
+        auto gdobj = (GDObject *)JS_GetOpaque(this_val, GDObject::class_id);
+        if (!gdobj) {
+            return JS_EXCEPTION;
+        }
+
+        if(argc != 1){
+            return JS_EXCEPTION;
+        }
+
+        auto ret = gdobj->godot_object.get(var_to_variant(ctx, argv[0]));
+        
+        return variant_to_var(ctx, ret);
+    }
+    JSValue GDObject::set(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic)
+    {
+        auto gdobj = (GDObject *)JS_GetOpaque(this_val, GDObject::class_id);
+        if (!gdobj) {
+            return JS_EXCEPTION;
+        }
+        if(argc != 2){
+            return JS_EXCEPTION;
+        }
+
+        gdobj->godot_object.set(var_to_variant(ctx, argv[0]), var_to_variant(ctx, argv[1]));
+        return JS_UNDEFINED;
+    }
 }
-
-

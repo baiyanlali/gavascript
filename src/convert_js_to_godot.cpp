@@ -4,6 +4,7 @@
 #include <godot_cpp/core/memory.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 #include "GDFunction.h"
+#include "GDObject.h"
 typedef struct JSObject JSObject;
 
 namespace gavascript{
@@ -43,8 +44,17 @@ namespace gavascript{
                     // UtilityFunctions::print("Get GDFunction");
                     GDFunction *func = static_cast<GDFunction *>(JS_GetOpaque(p_val, GDFunction::class_id));
                     return func->callable;
+                } else if (GDObject::is_instance(ctx, p_val)) {
+                    UtilityFunctions::print("Get GDObject");
+                    GDObject *obj = static_cast<GDObject *>(JS_GetOpaque(p_val, GDObject::class_id));
+                    if(obj == NULL){
+                        UtilityFunctions::print("But Null");
+                        return Variant();
+                    }
+                    return obj->godot_object;
                 }
                  else { 
+
                     // UtilityFunctions::print("Get JSObject");
                     JSObject *obj = memnew(JSObject(ctx, p_val));
                     return obj;

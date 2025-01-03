@@ -25,7 +25,8 @@ namespace gavascript {
         GDObject() {};
         Variant godot_object;
 
-        static JSValue MagicFunction(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic);
+        static JSValue get(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic);
+        static JSValue set(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic);
     };
 }
 
