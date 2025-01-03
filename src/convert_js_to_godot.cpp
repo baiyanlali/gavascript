@@ -43,18 +43,21 @@ namespace gavascript{
                 } else if (GDFunction::is_instance(ctx, p_val)) {
                     // UtilityFunctions::print("Get GDFunction");
                     GDFunction *func = static_cast<GDFunction *>(JS_GetOpaque(p_val, GDFunction::class_id));
+                    if(func == NULL){
+                        UtilityFunctions::printerr("Can not get GDFunction");
+                        return Variant();
+                    }
                     return func->callable;
                 } else if (GDObject::is_instance(ctx, p_val)) {
-                    UtilityFunctions::print("Get GDObject");
+                    // UtilityFunctions::print("Get GDObject");
                     GDObject *obj = static_cast<GDObject *>(JS_GetOpaque(p_val, GDObject::class_id));
                     if(obj == NULL){
-                        UtilityFunctions::print("But Null");
+                        UtilityFunctions::printerr("Can not get GDObject");
                         return Variant();
                     }
                     return obj->godot_object;
                 }
                  else { 
-
                     // UtilityFunctions::print("Get JSObject");
                     JSObject *obj = memnew(JSObject(ctx, p_val));
                     return obj;

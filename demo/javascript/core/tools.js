@@ -1,3 +1,4 @@
+
 export const clone = (obj) => {
   if (obj === null || typeof obj !== "object") return obj;
   const copy = obj.constructor();
@@ -27,15 +28,27 @@ export const unitVector = (vector) => {
 };
 
 /**
+ * Computes the dot product of two vectors.
+ *
+ * @param {Array<number>} vector1 - The first vector.
+ * @param {Array<number>} vector2 - The second vector.
+ * @returns {number} - The dot product of the two vectors.
+ */
+export const dot = (vector1, vector2) => {
+  return vector1[0] * vector2[0] + vector1[1] * vector2[1];
+};
+
+/**
  * @return {boolean}
  * @param sprite
  * @param game
- * @param name
+ * @param {string} name
  */
 export const oncePerStep = (sprite, game, name) => {
-  name = "_" + name;
+  name = `_${name}`;
 
-  if (sprite[name]) if (sprite[name] === game.time) return false;
+  if (sprite[name] && Math.abs(sprite[name] - game.time) < 1) 
+    return false;
 
   sprite[name] = game.time;
   return true;
@@ -99,7 +112,7 @@ export class defaultDict {
     this.base = base;
   }
 
-  get(key){
+  get = (key) => {
     if (this.hasOwnProperty(key)) {
       if (key === "get") return [];
       return this[key];
@@ -177,7 +190,7 @@ Math.RNG = (seed) => {
   return seeded;
 };
 
-Array.prototype.shuffled = (seed) => {
+Array.prototype.shuffled = function (seed) {
   let rnd = Math.random;
   if (seed) {
     rnd = Math.RNG(seed);
@@ -273,3 +286,43 @@ export const initializeDistribution = (sprite_types) => {
   });
   return initial_distribution;
 };
+
+export const getAbsoluteDirection = (ori, rel_dir) => {
+  const [ox, oy] = ori
+  const [dx, dy] = rel_dir
+  // Rotation using the orientation
+  const absolute_dx = ox * dx - oy * dy
+  const absolute_dy = oy * dx + ox * dy
+  return [absolute_dx, absolute_dy]
+}
+
+export const UniformVectorToDegree = (x, y) => {
+  let angle = Math.atan2(y, x) * 180 / Math.PI - 90;
+  // console.log(angle, Math.atan2(y, x), y, x)
+  if(angle < 0)
+      angle += 360;
+  return angle;
+}
+
+export const DegreeToUniformVector = (angle) => {
+  let x = Math.cos(angle * Math.PI / 180);
+  let y = Math.sin(angle * Math.PI / 180);
+  return [x, y]
+}
+
+export function arraysEqual(arr1, arr2) {
+  if (arr1.length !== arr2.length) return false;
+  for (let i = 0; i < arr1.length; i++) {
+    if (arr1[i] !== arr2[i]) return false;
+  }
+  return true;
+}
+
+export function includesArray(mainArray, searchArray) {
+  for (let arr of mainArray) {
+    if (arraysEqual(arr, searchArray)) {
+      return true;
+    }
+  }
+  return false;
+}

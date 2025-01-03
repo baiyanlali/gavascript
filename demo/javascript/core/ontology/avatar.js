@@ -1,6 +1,6 @@
 import { BASEDIRS, DOWN, GREEN, LEFT, RIGHT, UP, WHITE } from "./constants.js";
 import { OrientedSprite, SpriteProducer, VGDLSprite } from "./vgdl-sprite.js";
-import { unitVector } from "../tools.js";
+import { unitVector, vectNorm, getAbsoluteDirection, UniformVectorToDegree, DegreeToUniformVector } from "../tools.js";
 
 const ActionMapping = {
   UP: UP,
@@ -10,56 +10,57 @@ const ActionMapping = {
   SPACE: 42,
 };
 
-export class Avatar extends VGDLSprite {
-  actions = [];
-  constructor(pos, size, args) {
-    super(pos, size, args);
-    this.actions = this.declare_possible_actions();
-    // this.shrinkfactor = 0.15
-  }
+// export class Avatar extends VGDLSprite {
+//   actions = [];
+//   constructor(pos, size, args) {
+//     super(pos, size, args);
+//     this.actions = this.declare_possible_actions();
+//     // this.shrinkfactor = 0.15
+//   }
 
-  update(game) {
-    super.update(game);
-  }
+//   update(game, delta = 0) {
+//     super.update(game, delta);
+//   }
 
-  declare_possible_actions() {
-    return [];
-  }
+//   declare_possible_actions() {
+//     return [];
+//   }
 
-  _readMultiActions(game) {
-    const res = [];
+//   _readMultiActions(game) {
+//     const res = [];
 
-    for (const action of this.declare_possible_actions()) {
-      if (game.keystate[action]) res.push(ActionMapping[action]);
-    }
-    return res;
-  }
+//     for (const action of this.declare_possible_actions()) {
+//       if (game.keystate[action]) res.push(ActionMapping[action]);
+//     }
+//     return res;
+//   }
 
-  _readAction(game) {
-    const actions = this._readMultiActions(game);
-    if (actions.length) return actions[0];
-    else return null;
-  }
-}
+//   _readAction(game) {
+//     const actions = this._readMultiActions(game);
+//     if (actions.length) return actions[0];
+//     else return null;
+//   }
+// }
 
 export class MovingAvatar extends VGDLSprite {
   constructor(pos, size, args) {
     // args.color = args.color || WHITE
     super(pos, size, args);
-    this.actions = this.declare_possible_actions();
-    this.speed = 1;
+    // this.actions = this.declare_possible_actions();
+    this.speed = args.speed ?? 1;
     this.is_avatar = true;
+    this.playerID = 0;
   }
 
   declare_possible_actions() {
-    return ["UP", "DOWN", "LEFT", "RIGHT"];
+    return [`UP${this.playerID}`, `DOWN${this.playerID}`, `LEFT${this.playerID}`, `RIGHT${this.playerID}`];
   }
 
   _readMultiActions(game) {
     const res = [];
 
     for (const action of this.declare_possible_actions()) {
-      if (game.keystate[action]) res.push(ActionMapping[action]);
+      if (game.keystate[action]) res.push(ActionMapping[action.substring(0, action.length - 1)]);
     }
     return res;
   }
@@ -70,10 +71,8 @@ export class MovingAvatar extends VGDLSprite {
     else return null;
   }
 
-  update(game) {
-    super.update(game);
-    // this.on_ground = true;
-    // console.log(this.location)
+  update(game, delta = 0) {
+    super.update(game, delta);
     const action = this._readAction(game);
     if (
       action !== null &&
@@ -84,18 +83,19 @@ export class MovingAvatar extends VGDLSprite {
   }
 }
 
+
 export class HorizontalAvatar extends MovingAvatar {
   constructor(pos, size, args) {
     super(pos, size, args);
-    this.actions = this.declare_possible_actions();
+    // this.actions = this.declare_possible_actions();
   }
 
   declare_possible_actions() {
-    return ["LEFT", "RIGHT"];
+    return [`LEFT${this.playerID}`, `RIGHT${this.playerID}`];
   }
 
-  update(game) {
-    super.update(game);
+  update(game, delta = 0) {
+    super.update(game, delta);
     // const action = this._readAction(game);
     // if (action === RIGHT || action === LEFT) {
     //     this.physics.activeMovement(this, action, this.speed);
@@ -106,15 +106,15 @@ export class HorizontalAvatar extends MovingAvatar {
 export class VerticalAvatar extends MovingAvatar {
   constructor(pos, size, args) {
     super(pos, size, args);
-    this.actions = this.declare_possible_actions();
+    // this.actions = this.declare_possible_actions();
   }
 
   declare_possible_actions() {
-    return ["UP", "DOWN"];
+    return [`UP${this.playerID}`, `DOWN${this.playerID}`];
   }
 
-  update(game) {
-    super.update(game);
+  update(game, delta = 0) {
+    super.update(game, delta);
     // const action = this._readAction(game);
     // if (action === UP || action === DOWN) {
     //     this.physics.activeMovement(this, action);
@@ -129,16 +129,16 @@ export class FlakAvatar extends HorizontalAvatar {
   }
 
   declare_possible_actions() {
-    return [...super.declare_possible_actions(), "SPACE"];
+    return [...super.declare_possible_actions(), `SPACE${this.playerID}`];
   }
 
-  update(game) {
-    super.update(game);
+  update(game, delta = 0) {
+    super.update(game, delta);
     this._shoot(game);
   }
 
   _shoot(game) {
-    if (this.stype && game.keystate["SPACE"]) {
+    if (this.stype && game.keystate[`SPACE${this.playerID}`]) {
       const spawn = game._createSprite(
         [this.stype],
         [this.location.x, this.location.y],
@@ -157,7 +157,7 @@ export class OrientedAvatar extends MovingAvatar {
     return super.declare_possible_actions(this);
   }
 
-  update(game) {
+  update(game, delta = 0) {
     this.lastmove++;
     const tmp = this.orientation.slice();
     this.orientation = [0, 0];
@@ -183,7 +183,7 @@ export class RotatingAvatar extends OrientedAvatar {
     this.speed = 0;
   }
 
-  update(game) {
+  update(game, delta = 0) {
     this.lastmove++;
     const actions = this._readMultiActions(game);
     if (UP in actions) this.speed = 1;
@@ -206,7 +206,7 @@ export class RotatingFlippingAvatar extends RotatingAvatar {
     this.noiseLevel = args.noiseLevel || 0;
   }
 
-  update(game) {
+  update(game, delta = 0) {
     this.lastmove++;
     let actions = this._readMultiActions(game);
     if (actions.length > 0 && this.noiseLevel > 0) {
@@ -248,9 +248,9 @@ export class ShootAvatar extends OrientedAvatar {
     this.stype = args.stype.split(",");
   }
 
-  update(game) {
+  update(game, delta = 0) {
     // console.trace(`[Shoot Avatar] Update`)
-    super.update(game);
+    super.update(game, delta);
 
     for (let i = 0; i < this.stype.length; i++) {
       if (this._hasAmmo(i)) {
@@ -294,7 +294,7 @@ export class OngoingShootAvatar extends ShootAvatar {
     this.orientation = [0, 0];
   }
 
-  update(game) {
+  update(game, delta = 0) {
     this.lastmove++;
     const action = this._readAction(game);
 
@@ -320,7 +320,7 @@ export class MissileAvatar extends OrientedAvatar {
     this.is_oriented = true;
   }
 
-  update(game) {
+  update(game, delta = 0) {
     this.physics.activeMovement(this, this.orientation, this.speed);
   }
 
@@ -329,91 +329,31 @@ export class MissileAvatar extends OrientedAvatar {
   }
 }
 
-export class PlatformerAvatar extends MovingAvatar{
+export class FPSAvatar extends MovingAvatar{
   constructor(pos, size, args) {
     super(pos, size, args);
-    this.speed = 1;
-    this.is_oriented = true;
-    this.ground_speedup_factor = args.ground_speedup_factor ?? 1.0;
-    this.air_slowdown_factor = args.air_slowdown_factor ?? 2.0;
-    this.jump_strength = args.jump_strength ?? 10;
-    this.on_ground = false;
-    this.max_speed = 30.0;
-    this.actions = this.declare_possible_actions();
-    this.hidden_speed = 1;
-    this.hidden_onground = false;
+    this.speed = args.speed ?? 1;
+    this.stored_speed = this.speed;
   }
 
-  // get speed() {return this.hidden_speed}
-  // set speed(value) {this.hidden_speed = value; console.trace("trace speed",value)} 
-  get on_ground() {return this.hidden_onground}
-  set on_ground(value) {this.hidden_onground = value; console.trace("set on ground", value)}
-  declare_possible_actions() {
-    return ["LEFT", "RIGHT", "SPACE"];
+  updateOrientation(ori){
+    this.orientation =  unitVector([...ori]);
   }
 
-  update(game){
-    // console.log("update start", this.speed)
-    // this.lastmove += 1;
-    // if (!this.is_static && !this.only_active) {
-    //   this.physics.passiveMovement(this);
-    // }
-    // // this.on_ground = true;
-    // // console.log(this.location)
-    // const action = this._readAction(game);
-    // if (
-    //   action !== null &&
-    //   action !== undefined &&
-    //   action !== ActionMapping.SPACE
-    // )
-    // this.physics.activeMovement(this, action, this.speed);
-    // // console.log("update end", this.speed)
-
-    console.log("onground", this.on_ground)
-    super.update(game)
-    
-    const action = this._readAction(game);
-    // this.on_ground = true;
-    if(action === ActionMapping.SPACE && this.on_ground){
-      const action = [0, -this.jump_strength]
-      this.orientation = [this.orientation[0], 0]
-      
-      this.physics.activeMovement(this, action, this.speed)
-      this.lastmove = this.cooldown
-      // const temp = [0, -1]
-      // this._updatePos(temp, 5)
+  update(game, delta = 0) {
+    this.speed = 0;
+    super.update(game, delta)
+    this.speed = this.stored_speed;
+    const actions = this._readMultiActions(game)
+    const sum_action = actions.filter(a => a !== 42).reduce((a, b) => [a[0]+b[0], a[1]+b[1]], [0, 0])
+    if(vectNorm(sum_action)===0){
+      return;
     }
-
-    
-    this.physics.passiveMovement(this)
-    this.on_ground = false;
-
-    // if(!action) return;
-
-    // if(action[0] !== 0 || action[1] !== 0){
-    //   let new_action = [action[0] * this.ground_speedup_factor, action[1]]
-    //   if(!this.on_ground){
-    //     new_action = [action[0]/this.air_slowdown_factor, action[1]]
-    //   }
-    //   console.log(new_action, action, this.air_slowdown_factor)
-    //   this.physics.activeMovement(this, new_action, this.speed)
-    // }
+    const direction = unitVector(sum_action);
+    const current_degree = UniformVectorToDegree(this.orientation[0], this.orientation[1]);
+    const fixed_orientation = DegreeToUniformVector(current_degree + 180);
+    const absolute_direction = getAbsoluteDirection(fixed_orientation, direction)
+    // console.log(JSON.stringify(this.orientation), JSON.stringify(direction), current_degree, JSON.stringify(fixed_orientation), JSON.stringify(absolute_direction))
+    this.physics.activeMovement(this, absolute_direction, this.speed);
   }
-
-  // _updatePos = (orientation, speed = null) => {
-  //   if (speed === null) speed = this.speed;
-
-  //   if (
-  //     this.cooldown <= this.lastmove &&
-  //     Math.abs(orientation[0]) + Math.abs(orientation[1]) !== 0
-  //   ) {
-  //     this.lastlocation = { x: this.location.x, y: this.location.y };
-  //     this.location = {
-  //       x: this.location.x + orientation[0] * speed,
-  //       y: this.location.y + orientation[1] * speed,
-  //     };
-  //     this.lastmove = 0;
-  //   }
-  //   console.trace(this.location, orientation, speed)
-  // };
 }

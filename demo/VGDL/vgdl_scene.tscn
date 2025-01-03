@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3 uid="uid://ccrfrpfrsxv70"]
+
+[ext_resource type="Script" path="res://VGDL/vgdl_scene.gd" id="1_cxide"]
+[ext_resource type="Script" path="res://VGDL/vgdl_renderer.gd" id="2_oj08w"]
+
+[node name="VGDLScene" type="Node2D"]
+script = ExtResource("1_cxide")
+
+[node name="GavaScriptInstance" type="GavaScriptInstance" parent="."]
+
+[node name="VGDLRenderer" type="Node2D" parent="."]
+script = ExtResource("2_oj08w")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+offset = Vector2(-64, -64)
+anchor_mode = 0
+zoom = Vector2(0.5, 0.5)

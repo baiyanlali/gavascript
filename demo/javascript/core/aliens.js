@@ -1,123 +1,161 @@
-// export const aliens_game = `
-// BasicGame block_size=10
-//   SpriteSet
-//     background > Immovable randomtiling=0.9 img=oryx/floor3 hidden=True
-//     goal  > Immovable color=GREEN img=oryx/doorclosed1
-//     key   > Immovable color=ORANGE img=oryx/key2
-//     sword > OrientedFlicker limit=5 singleton=True img=oryx/slash1
-//     movable >
-//       avatar  > ShootAvatar   stype=sword frameRate=8
-//         nokey   > img=oryx/swordman1_0
-//         withkey > color=ORANGE img=oryx/swordmankey1_0
-//       enemy >
-//         monsterQuick > RandomNPC cooldown=2 cons=6 img=oryx/bat1
-//         monsterNormal > RandomNPC cooldown=4 cons=8 img=oryx/spider2
-//         monsterSlow > RandomNPC cooldown=8 cons=12 img=oryx/scorpion1
-//     wall > Immovable autotiling=true img=oryx/wall3
-//
-//
-//   LevelMapping
-//     . > background
-//     g > background goal
-//     + > background key
-//     A > background nokey
-//     1 > background monsterQuick
-//     2 > background monsterNormal
-//     3 > background monsterSlow
-//     w > wall
-//
-//
-//   InteractionSet
-//     movable wall  > stepBack
-//     #nokey goal    > stepBack
-//     goal withkey  > killSprite scoreChange=1
-//     enemy sword > killSprite scoreChange=2
-//     enemy enemy > stepBack
-//     avatar enemy > killSprite scoreChange=-1
-//     nokey key     > transformTo stype=withkey
-//     key  avatar   > killSprite scoreChange=1
-//
-//   TerminationSet
-//     SpriteCounter stype=goal   win=True
-//     SpriteCounter stype=avatar win=False`
-//
-// export const aliens_map = `
-// wwwwwwwwwwwww
-// wA.......w..w
-// w..w........w
-// w...w...w.+ww
-// www.w2..wwwww
-// w.......w.g.w
-// w.2.........w
-// w.....2.....w
-// wwwwwwwwwwwww`
-
 export const aliens_game = `
-
-BasicGame
+BasicGame block_size=5
     SpriteSet
-
-        platforms > solid=True
-            elevator > Missile orientation=UP speed=0.1 img=newset/floor3
-            cloud    > Passive img=newset/cloud2 physicstype=CONT gravity=1.0 friction=0.02
-            ground > Immovable color=DARKGRAY
-
-        moving > physicstype=CONT gravity=1.0
-            avatar > PlatformerAvatar img=newset/man1 mass=1 friction=0.1 jump_strength=3
-            evil   >  orientation=LEFT gravity=0.5
-                goomba     > Walker img=newset/zombie friction=0.0
-
-        goal > Immovable img=oryx/mushroom2
-        fire > Immovable img=oryx/fire1
-        coin > Immovable img=oryx/gold1
-
-        wall > Immovable solid=False color=DARKGRAY
-            
-    TerminationSet
-        SpriteCounter stype=avatar    win=False
-           
-    InteractionSet
-
-        coin avatar > killSprite scoreChange=1
-        evil avatar > killIfFromAbove scoreChange=1
-        avatar evil > killIfAlive
-        evil EOS  > killSprite
-
-        goal avatar > killSprite
-
-        moving elevator > pullWithIt
-        evil wall ground > wallReverse
-
-        elevator EOS > wrapAround
-
-        cloud avatar > bounceForward
-        cloud wall ground fire > wallStop
-        avatar wall ground > wallStop
-
-        avatar cloud > wallStop
-        avatar EOS fire > killSprite
-        
+        background > Immovable img=oryx/space1 hidden=True
+        base    > Immovable    color=WHITE img=oryx/space5
+        avatar  > FlakAvatar   stype=sam img=oryx/spaceship1 blueprint=Spaceship
+        missile > Missile
+            sam  > orientation=UP    color=BLUE singleton=True img=oryx/bullet2
+            bomb > orientation=DOWN  color=RED  speed=0.5 img=oryx/bullet2
+        alien   > Bomber       stype=bomb   prob=0.05  cooldown=3 speed=0.8  blueprint=UFO
+            alienGreen > img=oryx/alien3
+            alienBlue > img=oryx/alien1
+        portal  > invisible=True hidden=True
+            portalSlow  > SpawnPoint   stype=alienBlue  cooldown=16   total=20
+            portalFast  > SpawnPoint   stype=alienGreen  cooldown=12   total=20
+    
     LevelMapping
-        G > goal
-        1 > goomba
-        = > elevator
-        l > cloud
-        f > fire
-        c > coin
-        . > ground`;
+        . > background
+        0 > background base
+        1 > background portalSlow
+        2 > background portalFast
+        A > background avatar
+
+    TerminationSet
+        SpriteCounter      stype=avatar               limit=0 win=False
+        MultiSpriteCounter stype1=portal stype2=alien limit=0 win=True
+        
+    InteractionSet
+        avatar  EOS  > stepBack
+        alien   EOS  > turnAround
+        missile EOS  > killSprite
+
+        base bomb > killBoth
+        base sam > killBoth
+
+        base   alien > killSprite
+        avatar alien > killSprite scoreChange=-1
+        avatar bomb  > killSprite scoreChange=-1
+        alien  sam   > killSprite scoreChange=2`;
 
 export const aliens_map = `
-wwwwwwwwwwwwwwwwwwwwwwwwwwww
-w                          w
-w                          w
-w                          w
-w                          w
-w                          w
-w                          w
-w                          w
-w                          w
-w                          w
-w                          w
-w A                        w
-w..........................w
-wwwwwwwwwwwwwwwwwwwwwwwwwwww`;
+1.............................
+000...........................
+000...........................
+..............................
+..............................
+..............................
+..............................
+....000......000000.....000...
+...00000....00000000...00000..
+...0...0....00....00...00000..
+................A.............`;
+
+export const sokoban_game = `
+BasicGame square_size=40
+    SpriteSet
+        floor > Immovable img=newset/floor2 blueprint=VGDLFloor
+        hole   > Immovable color=DARKBLUE img=oryx/cspell4 blueprint=VGDLHole
+        avatar > MovingAvatar img=oryx/knight1
+        box    > Passive img=newset/block1 shrinkfactor=0.8 blueprint=VGDLEnemy
+        wall > Immovable img=oryx/wall3 autotiling=True blueprint=VGDLBrick
+    LevelMapping
+        H > floor hole
+        C > floor box
+        W > floor wall
+        P > floor avatar
+    InteractionSet
+        avatar wall > stepBack
+        box avatar  > bounceForward
+        box wall box  > undoAll
+        box hole    > killSprite scoreChange=1
+    TerminationSet
+        SpriteCounter stype=box    limit=0 win=True`
+
+export const sokoban_map = `
+wwwwwwwwwwwww
+w........w..w
+w...1.......w
+w...A.1.w.0ww
+www.w1..wwwww
+w.......w.0.w
+w.1........ww
+w..........ww
+wwwwwwwwwwwww`
+
+
+// export const sokoban_map = 
+// `
+// WWWWWWWWWWWW
+// W    W     W
+// W C  W  H  W
+// W    WW    W
+// W    W     W
+// W        WWW
+// W  P W  C HW
+// W   W      W
+// WWWWWWWWWWWW`
+
+// export const fps_test = `
+// BasicGame square_size=40 FPS=true
+//     SpriteSet
+//         floor > Immovable img=newset/floor2 blueprint=VGDLFloor
+//         hole   > Immovable color=DARKBLUE img=oryx/cspell4 blueprint=VGDLHole
+//         avatar > FPSAvatar img=oryx/knight1 speed=0.1
+//         box    > Passive img=newset/block1 shrinkfactor=0.5 blueprint=VGDLEnemy
+//         wall > Immovable img=oryx/wall3 autotiling=True blueprint=VGDLBrick
+//     LevelMapping
+//         H > floor hole
+//         C > floor box
+//         W > floor wall
+//         P > floor avatar
+//     InteractionSet
+//         avatar wall > stepBack
+//         box avatar  > bounceForward
+//         box wall box  > undoAll
+//         box hole    > killSprite scoreChange=1
+//     TerminationSet
+//         SpriteCounter stype=box    limit=0 win=True
+// `
+// export const aliens_game = `
+// BasicGame
+//     SpriteSet
+//         floor > Immovable hidden=True img=oryx/grass autotiling=True
+//         carcass > Immovable color=BROWN img=oryx/worm2 shrinkfactor=0.6
+//         goat > stype=avatar
+//             angry  > Chaser  color=ORANGE img=oryx/bird3
+//             scared > Fleeing color=BLUE img=oryx/bird1
+//         avatar > MovingAvatar img=oryx/princess1
+//         wall > Immovable img=oryx/tree2
+
+//     InteractionSet
+//         goat   wall goat   > stepBack
+//         avatar wall    > stepBack
+//         avatar  angry  > killSprite scoreChange=-1
+//         carcass scared > killSprite
+//         scared avatar  > transformTo stype=carcass scoreChange=1
+//         scared carcass > transformTo stype=angry
+
+//     LevelMapping
+//         0 > scared floor
+//         . > floor
+//         A > floor avatar
+//         w > floor wall
+
+//     TerminationSet
+//         SpriteCounter stype=scared win=True
+//         SpriteCounter stype=avatar win=False`
+
+// export const aliens_map = `
+// wwwwwwwwwwwwwwwwwwwwwwww
+// wwww....w0..ww......0www
+// w.....w.w.......ww....ww
+// w...0...0.ww..A.www....w
+// w.wwww.wwwww....ww...www
+// w........w.........0..ww
+// ww...w0.....ww...www...w
+// ww....ww...wwww....w...w
+// www..............w.....w
+// wwwwww...0..wwwwww....ww
+// wwwwwwwwwwwwwwwwwwwwwwww
+// `

@@ -47,7 +47,6 @@ export class Node {
   }
 
   insert = (node) => {
-    // console.log(this.content, node.content)
     if (this.indent < node.indent) {
       this.children.push(node);
       node.parent = this;
@@ -187,16 +186,16 @@ export class VGDLParser {
           return x.trim();
         });
 
-        console.assert(
-          c.length === 1,
-          "Only single character mappings allowed",
-        );
+        // console.assert(
+        //   c.length === 1,
+        //   "Only single character mappings allowed",
+        // );
 
         const keys = val.split(" ").map((x) => {
           return x.trim();
         });
 
-        console.debug("Mapping", c, keys);
+        // console.debug("Mapping", c, keys);
 
         this.game.char_mapping[c] = keys;
       } catch (e) {
@@ -218,7 +217,7 @@ export class VGDLParser {
           const [cclass, cargs] = this.parseArgs(conditional);
           const [eclass, eargs] = this.parseArgs(conditional);
 
-          console.debug(`Adding Condition ${conditional}  ${interaction}`);
+          // console.debug(`Adding Condition ${conditional}  ${interaction}`);
 
           this.game.conditions.push([new cclass(cargs), [eclass, eargs]]);
         } catch (e) {
@@ -234,11 +233,11 @@ export class VGDLParser {
     tnodes.forEach((t) => {
       try {
         const [sclass, args] = this.parseArgs(t.content);
-        console.debug(`Adding Termination: ${sclass} ${args}`);
+        // console.debug(`Adding Termination: ${sclass} ${args}`);
         this.game.terminations.push(new sclass(args));
       } catch (e) {
         throw new Error(
-          `Parse Termination Fail at Line ${t.line}:\n ${t.content} \n ${e.toString()} \n ${e.stack}`,
+          `Parse Termination Fail at Line ${t.line}:\n ${t.content} \n ${e.toString()}`,
         );
       }
     });
@@ -281,7 +280,7 @@ export class VGDLParser {
             }
           }
 
-          console.debug(`Adding Collision ${pair} has effect: ${edef}`);
+          // console.debug(`Adding Collision ${pair} has effect: ${edef}`);
         } catch (e) {
           throw new Error(
             `Parse Interaction Fail at Line ${i.line}: \n ${i.content} \n ${e.toString()}`,
@@ -299,7 +298,7 @@ export class VGDLParser {
   ) => {
     snodes.forEach((s) => {
       try {
-        console.assert(s.content.indexOf(">") !== -1);
+        // console.assert(s.content.indexOf(">") !== -1);
         const [key, sdef] = s.content.split(">").map((s) => s.trim());
         let [sclass, args] = this.parseArgs(
           sdef,
@@ -319,7 +318,7 @@ export class VGDLParser {
         }
 
         if (s.children.length === 0) {
-          console.debug(`Defining: ${key} ${sclass} ${args} ${stypes}`);
+          // console.debug(`Defining: ${key} ${sclass} ${args} ${stypes}`);
           this.game.sprite_constr[key] = [sclass, args, stypes];
 
           if (
@@ -358,7 +357,7 @@ export class VGDLParser {
         }
       } catch (e) {
         throw new Error(
-          `Parse Sprite Fail at Line ${s.line}: \n ${s.content} \n ${e.toString()}  \n ${e.stack}`,
+          `Parse Sprite Fail at Line ${s.line}: \n ${s.content} \n ${e.toString()}`,
         );
       }
     });

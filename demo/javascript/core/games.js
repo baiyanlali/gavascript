@@ -1,10 +1,10 @@
-import { defaultDict, initializeDistribution } from "./tools.js";
+import { defaultDict, includesArray, initializeDistribution } from "./tools.js";
 import { colorDict, DARKGRAY, GOLD } from "./ontology/constants.js";
 import { EOS, Immovable } from "./ontology/vgdl-sprite.js";
-import { Avatar, MovingAvatar } from "./ontology/avatar.js";
+import { MovingAvatar } from "./ontology/avatar.js";
 import { Termination } from "./ontology/termination.js";
 import { scoreChange, stochastic_effects } from "./ontology/effect.js";
-import { Resource } from "./ontology/resource.js";
+import { Resource } from "./ontology/resource";
 import { ContinuousPhysics, distance } from "./ontology/physics.js";
 
 const MAX_SPRITES = 10000;
@@ -81,7 +81,12 @@ export class BasicGame {
   shieldedEffects = {};
   paused = true;
 
+  FPS = false;
+  use_frame = false;
+
   objectTypes = {};
+
+  no_players = 1;
 
   ignoredattributes = [
     "stypes",
@@ -156,7 +161,7 @@ export class BasicGame {
     this.width = Math.max(...lengths);
     this.height = lines.length;
 
-    console.assert(this.width > 1 && this.height > 1, "Level too small");
+    // console.assert(this.width > 1 && this.height > 1, "Level too small");
 
     //Set up resources
     for (let res_type in this.sprite_constr) {
@@ -211,6 +216,8 @@ export class BasicGame {
     if (this.getAvatars().length === 0) this._createSprite(["avatar"], [0, 0]);
   };
 
+  current_avatar_idx = 0;
+
   _createSprite = (keys, pos) => {
     let res = [];
     keys.forEach((key) => {
@@ -230,8 +237,13 @@ export class BasicGame {
       });
       if (anyother) return;
       args.key = key;
-      let s = new sclass(pos, [this.block_size, this.block_size], args);
+      let s = new sclass(pos, [1, 1], args);
       s.stypes = stypes;
+
+      if(s instanceof MovingAvatar){
+        s.playerID = this.current_avatar_idx;
+        this.current_avatar_idx += 1;
+      }
 
       if (this.sprite_groups[key]) this.sprite_groups[key].push(s);
       else this.sprite_groups[key] = [s];
@@ -245,7 +257,7 @@ export class BasicGame {
 
   _createSprite_cheap = (key, pos) => {
     const [sclass, args, stypes] = this.sprite_constr[key];
-    const s = new sclass(pos, [this.block_size, this.block_size], args);
+    const s = new sclass(pos, [1, 1], args);
     s.stypes = stypes;
     this.sprite_groups[key].push(s);
     this.num_sprites += 1;
@@ -318,7 +330,7 @@ export class BasicGame {
     const res = [];
     if (this.sprite_groups.hasOwnProperty(key)) {
       const ss = this.sprite_groups[key];
-      if (ss && ss[0] instanceof Avatar)
+      if (ss && ss[0] instanceof MovingAvatar)
         res.concat(ss.filter((s) => this.kill_list.indexOf(s) === -1));
     }
     return res;
@@ -418,10 +430,16 @@ export class BasicGame {
     };
   };
 
-  _updateAll = () => {
+  /**
+   * Updates all sprites in the game.
+   * @param {number} delta - The time delta since the last update.
+   * This method iterates through all sprites and calls their update method, passing the game instance.
+   * If a sprite is not crashed, it will be updated; otherwise, it is skipped.
+   */
+  _updateAll = (delta) => {
     this._iterAll().forEach((sprite) => {
       // try {
-      if (!sprite.crashed) sprite.update(this);
+      if (!sprite.crashed) sprite.update(this, delta);
       // } catch (err) {
       //     if ((!sprite.crashed)) {
       //         console.error('could not update', sprite.name)
@@ -433,6 +451,12 @@ export class BasicGame {
     });
   };
 
+  _subUpdate = (sub_idx, sum_idx) => {
+    this._iterAll().forEach((sprite) => {
+      if (!sprite.crashed) sprite.subUpdate(this, sub_idx, sum_idx);
+    });
+  }
+
   _clearAll = (onscreen = true) => {
     this.kill_list.forEach((s) => {
       this.all_killed.push(s);
@@ -440,6 +464,7 @@ export class BasicGame {
     });
 
     this.kill_list = [];
+    this.shieldedEffects = {};
   };
 
   _updateCollisionDict = (changedsprite) => {
@@ -516,12 +541,11 @@ export class BasicGame {
       const eclass = eff[2];
 
       if (
-        this.shieldedEffects[class1] &&
-        this.shieldedEffects[class1].includes([class2, eclass.name])
+        this.shieldedEffects[class1] && includesArray(this.shieldedEffects[class1], [class2, eclass])
       ) {
-        console.log(
-          `[GAMES] Check shield ${class1}, ${class2}, ${eclass.name}`,
-        );
+        // console.log(
+        //   `[GAMES] Check shield ${class1}, ${class2}, return`,
+        // );
         return;
       }
 
@@ -540,42 +564,86 @@ export class BasicGame {
 
       if (this.collision_set.length === 0) return;
 
-      for (const collision of this.collision_set) {
-        const stypes1 = collision[0].stypes;
-        const stypes2 = collision[1].stypes;
+      // 确保collision按照顺序执行
+      for(let eff of this.collision_eff){
+        const class1 = eff[0]
+        const class2 = eff[1]
+        const eclass = eff[2]
+        const used_collision = [];
+        for (const collision of this.collision_set) {
+          const stypes1 = collision[0].stypes;
+          const stypes2 = collision[1].stypes;
 
-        // console.log("parsing",collision[0], collision[1])
+          let effects = [];
 
-        let effects = [];
-        if (collision[1] === "EOS" || collision[1] === "eos") {
-          this.collision_eff.forEach((eff) => {
-            const class1 = eff[0];
-            const class2 = eff[1];
+          if (collision[1] === "EOS" || collision[1] === "eos") {
+              if (
+                stypes1.includes(class1) &&
+                (class2 === "EOS" || class2 === "eos")
+              )
+                effects = [{ reverse: false, effect: eff[2], kwargs: eff[3] }];
+          } 
+          else {
             if (
-              stypes1.includes(class1) &&
-              (class2 === "EOS" || class2 === "eos")
-            )
-              effects = [{ reverse: false, effect: eff[2], kwargs: eff[3] }];
-          });
-        } else {
-          effects = this.get_effect(stypes1, stypes2);
-          // console.log("effects", effects)
-        }
+              this.shieldedEffects[class1] && includesArray(this.shieldedEffects[class1], [class2, eclass])
+            ) {
+              return;
+            }
+      
+            if (stypes1.includes(class1) && stypes2.includes(class2))
+              effects.push({ reverse: false, effect: eff[2], kwargs: eff[3] });
+            else if (stypes1.includes(class2) && stypes2.includes(class1))
+              effects.push({ reverse: true, effect: eff[2], kwargs: eff[3] });
+          };
+        
+          if (effects.length === 0) continue;
+          used_collision.push(collision);
+          for (const effect_set of effects) {
+            let [sprite, partner] = [collision[0], collision[1]];
+            if (effect_set.reverse) {
+              [sprite, partner] = [collision[1], collision[0]];
+            }
 
-        if (effects.length === 0) continue;
-
-        for (const effect_set of effects) {
-          let [sprite, partner] = [collision[0], collision[1]];
-          if (effect_set.reverse) {
-            [sprite, partner] = [collision[1], collision[0]];
+            effect_set.effect(sprite, partner, this, effect_set.kwargs);
           }
-
-          effect_set.effect(sprite, partner, this, effect_set.kwargs);
         }
+        // this.collision_set = this.collision_set.filter((c) => !used_collision.includes(c));
       }
-
       this.collision_set = [];
     }
+
+      // for (const collision of this.collision_set) {
+      //   const stypes1 = collision[0].stypes;
+      //   const stypes2 = collision[1].stypes;
+
+      //   let effects = [];
+      //   if (collision[1] === "EOS" || collision[1] === "eos") {
+      //     this.collision_eff.forEach((eff) => {
+      //       const class1 = eff[0];
+      //       const class2 = eff[1];
+      //       if (
+      //         stypes1.includes(class1) &&
+      //         (class2 === "EOS" || class2 === "eos")
+      //       )
+      //         effects = [{ reverse: false, effect: eff[2], kwargs: eff[3] }];
+      //     });
+      //   } else {
+      //     effects = this.get_effect(stypes1, stypes2);
+      //   }
+
+      //   if (effects.length === 0) continue;
+
+      //   for (const effect_set of effects) {
+      //     let [sprite, partner] = [collision[0], collision[1]];
+      //     if (effect_set.reverse) {
+      //       [sprite, partner] = [collision[1], collision[0]];
+      //     }
+
+      //     effect_set.effect(sprite, partner, this, effect_set.kwargs);
+      //   }
+      // }
+
+      
   };
 
   run = (on_game_end) => {
@@ -583,21 +651,32 @@ export class BasicGame {
     return this.startGame;
   };
 
-  presskey = (keyCode) => {
+  presskey = (keyCode, playerID = 0) => {
     // console.log(`Press Button: ${keyCode}`)
-    this.keystate[keyCode] = true;
-    this.key_to_clean?.push(keyCode);
-    if (this.key_handler === "Pulse") {
-      this.update(0, true);
-    }
+    if (this.key_handler === "Pulse") return;
+    const key = `${keyCode}${playerID}`;
+    // console.log(`Presskey`, key)
+    this.keystate[key] = true;
+    // this.key_to_clean?.push(key);
+    // if (this.key_handler === "Pulse") {
+    //   this.update(0, true);
+    // }
   };
 
-  presskeyUp = (keyCode) => {
-    this.key_to_clean?.push(keyCode);
+  presskeyUp = (keyCode, playerID = 0) => {
+    const key = `${keyCode}${playerID}`;
+    if (this.key_handler === "Pulse") {
+      this.keystate[key] = true;
+      this.key_to_clean?.push(key);
+      return;
+    }
+    this.keystate[key] = false;
+    this.key_to_clean?.push(key);
     // this.update(0, true)
   };
 
-  updateTime = 1000 / 10;
+  // updateTime = 1000 / 10;
+  updateTime = 1/15;
   currentTime = 0;
 
   collision_set = [];
@@ -607,11 +686,14 @@ export class BasicGame {
   };
 
   addShield = (a, stype, ftype) => {
-    if (this.shieldedEffects[a[a.length - 1]]) {
-      this.shieldedEffects[a[-1]].push([stype, ftype]);
-    } else {
-      this.shieldedEffects[a[-1]] = [[stype, ftype]];
+
+    for(const a_type of a){
+      if(!this.shieldedEffects[a_type])
+        this.shieldedEffects[a_type] = []
+      if(includesArray(this.shieldedEffects[a_type], [stype, ftype])) continue;
+      this.shieldedEffects[a_type].push([stype, ftype]);
     }
+    // console.log("add shield", a, stype, ftype, this.shieldedEffects)
   };
 
   updateCollision = () => {
@@ -620,11 +702,11 @@ export class BasicGame {
 
     for (let i = 0; i < allSprites.length; i++) {
       const sprite1 = allSprites[i];
-      // console.log(sprite1.name)
+
       // Hidden 只是给observer使用的，对于游玩来说没有什么用
       // if(sprite1.hidden === true)
       //     continue
-      // sprite1.on_ground = false;
+
       if (
         sprite1.location.x < 0 ||
         sprite1.location.x > this.width ||
@@ -637,73 +719,27 @@ export class BasicGame {
       for (let j = i + 1; j < allSprites.length; j++) {
         const sprite2 = allSprites[j];
         const dist = distance(sprite1, sprite2);
-        // if(sprite1.name === "avatar" || sprite2.name === "avatar")
-        //   if(dist <= 2)
-        //   console.log("judge ", sprite1.name, " and ", sprite2.name, dist)
+
         if (dist <= 0.99) {
-          {
-          // console.log("judge ", sprite1.name, " and ", sprite2.name, dist)
-            this.collision_set.push([sprite1, sprite2]);
-          }
-
-          
-        }
-      }
-    }
-  };
-
-  updateOnGround = () => {
-    //TODO: 使用最简单的方法实现，到非格子的方法可能会有问题
-    const allSprites = this._iterAll(true);
-
-    for (let i = 0; i < allSprites.length; i++) {
-      const sprite1 = allSprites[i];
-
-      for (let j = i + 1; j < allSprites.length; j++) {
-        const sprite2 = allSprites[j];
-        const dist = distance(sprite1, sprite2);
-        let higher_sprite = sprite1.location.y < sprite2.location.y? sprite1: sprite2;
-        let lower_sprite = sprite1.location.y > sprite2.location.y? sprite1: sprite2;
-        if(dist <= 1.1 && lower_sprite.solid){
-          if(higher_sprite.name === "avatar" && dist < 3){
-            console.log(higher_sprite.name, lower_sprite.name, " case 1", dist, higher_sprite.location, lower_sprite.location)
-          }
-          // console.log(higher_sprite.name, "stand on ", lower_sprite.name)
-          higher_sprite.on_ground = true;
-        }else if (Math.abs(sprite1.location.x - sprite2.location.x) <= 1.1){
-          //高的y更小
-          const predicted_y = higher_sprite.location.y + higher_sprite.speed * higher_sprite.orientation[1];
-          if(higher_sprite.name === "avatar" && dist < 3){
-            console.log(higher_sprite.name, lower_sprite.name, " case 2", dist, higher_sprite.location, lower_sprite.location, predicted_y)
-          }
-          // console.log(higher_sprite.name, "stand on ", lower_sprite.name)
-          // if(higher_sprite.name === "avatar")
-          //   console.log(higher_sprite.name, lower_sprite.name, predicted_y, lower_sprite.location.y)
-          if(predicted_y + 1 >= lower_sprite.location.y && lower_sprite.solid)
-          {
-            console.log(higher_sprite.name, "stand on ", lower_sprite.name)
-            higher_sprite.on_ground = true;
-            higher_sprite.speed = lower_sprite.location.y - higher_sprite.location.y - 1
-          }
-        }else{
-          if(higher_sprite.name === "avatar" && dist < 3){
-            console.log(higher_sprite.name, lower_sprite.name, " stand fail", dist, higher_sprite.location, lower_sprite.location)
-          }
+          this.collision_set.push([sprite1, sprite2]);
         }
       }
     }
   };
 
   update = (delta, now = false) => {
-    if (this.key_handler === "Pulse") {
-      if (!now) return;
-    }
-    if (!now) {
-      this.currentTime += delta;
-      if (this.currentTime < this.updateTime) return;
-      this.currentTime %= this.updateTime;
-    }
+    // if (this.key_handler === "Pulse") {
+    //   if (!now) return;
+    // }
 
+    if  (this.use_frame === false){
+      if (!now) {
+        this.currentTime += delta;
+        if (this.currentTime < this.updateTime) return;
+        this.currentTime %= this.updateTime;
+      }
+    }
+    
     if (this.paused) return "paused";
     if (this.ended) {
       this.paused = true;
@@ -711,14 +747,13 @@ export class BasicGame {
       return this.win;
     }
 
-    this.time++;
+    if(this.use_frame === true)
+      this.time += delta * 15;
+    else this.time ++;
 
     this._terminationHandling();
 
     this._clearAll();
-
-    this.updateOnGround();
-
     this._updateAll();
 
     this._effectHandling();

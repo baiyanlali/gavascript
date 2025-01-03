@@ -1,5 +1,5 @@
 import { colorDict, DOWN } from "./constants.js";
-import { OrientedSprite, VGDLSprite } from "./vgdl-sprite.js";
+import { OrientedSprite } from "./vgdl-sprite.js";
 import * as tools from "../tools.js";
 import { oncePerStep, unitVector, vectNorm } from "../tools.js";
 import { Resource } from "./resource.js";
@@ -37,6 +37,7 @@ export function nothing(sprite, partner, game, kwargs) {
 
 export function killSprite(sprite, partner, game, kwargs) {
   game.kill_list.push(sprite);
+  // console.log("kill sprite", sprite.name, partner.name, game.collision_set)
   return [
     "killSprite",
     sprite.ID || sprite,
@@ -126,6 +127,13 @@ export function stepBack(sprite, partner, game, kwargs) {
 }
 
 export function bounceForward(sprite, partner, game, kwargs) {
+  // console.log("bounce forward", sprite.name, partner.name, JSON.stringify(partner.lastdirection()))
+  // detect if the partner is moving toward the sprite
+  if(game.use_frame){
+    const partner2spriteVector = [sprite.location.x - partner.location.x, sprite.location.y - partner.location.y]
+    const dotResult = tools.dot(partner2spriteVector, partner.orientation)
+    if(dotResult <= 0.2) {return;}
+  }
   sprite.physics.activeMovement(
     sprite,
     tools.unitVector(partner.lastdirection()),
@@ -241,41 +249,15 @@ export function wallBounce(sprite, partner, game, kwargs) {
 export function wallStop(sprite, partner, game, kwargs) {
   if (!tools.oncePerStep(sprite, game, "laststop")) return;
 
-  const friction = kwargs.friction ?? 0;
-
-
-  // stepBack(sprite, partner, game, kwargs);
-  const x_dist = Math.abs(sprite.location.x - partner.location.x);
-  const y_dist = Math.abs(sprite.location.y - partner.location.y);
-  const y_orient = sprite.orientation[1] * (1 - friction);
-  const x_orient = sprite.orientation[0] * (1 - friction);
-  const pred_x_dist = Math.abs(sprite.location.x + sprite.orientation[0] * 0.01 - partner.location.x)
-  const pred_y_dist = Math.abs(sprite.location.y + sprite.orientation[1] * 0.01 - partner.location.y)
-  
-  if(pred_x_dist < x_dist){
-    sprite.orientation[0] = 0;
-  }
-  if(pred_y_dist < y_dist){
-    sprite.orientation[1] = 0;
-  }
-  // if (x_dist < 0.999) {
-  //   sprite.location.x = sprite.lastlocation.x;
-  //   sprite.orientation[0] = 0;
-  // }
-  // if (y_dist < 0.999) {
-  //   sprite.location.y = sprite.lastlocation.y;
-  //   // sprite.location.y += - sprite.location.y + partner.location.y;
-  //   sprite.orientation[1] = 0;
-  // }
-  // if (x_dist > y_dist) sprite.orientation = [0, y_orient];
-  // else sprite.orientation = [x_orient, 0];
-  
+  stepBack(sprite, partner, game, kwargs);
+  let x_dist = Math.abs(sprite.location.x - partner.location.x);
+  let y_dist = Math.abs(sprite.location.y - partner.location.y);
+  let y_orient = sprite.orientation[1] * (1 - kwargs.friction);
+  let x_orient = sprite.orientation[0] * (1 - kwargs.friction);
+  if (x_dist > y_dist) sprite.orientation = [0, y_orient];
+  else sprite.orientation = [x_orient, 0];
   sprite.speed = tools.vectNorm(sprite.orientation) * sprite.speed;
   sprite.orientation = tools.unitVector(sprite.orientation);
-  if(sprite.name ===  "avatar" || partner.name === "avatar"){
-    // console.log("wallstop", sprite.name, partner.name, [x_dist, y_dist], [x_orient, y_orient], sprite.speed, sprite.orientation)
-  }
-  // sprite.speed = 0;
   return ["wallStop", sprite.ID || sprite, partner.ID || partner];
 }
 
@@ -329,7 +311,7 @@ export function killAll(sprite, partner, game, kwargs) {
 }
 
 export function collectResource(sprite, partner, game, kwargs) {
-  console.assert(sprite instanceof Resource);
+  // console.assert(sprite instanceof Resource);
   let resource_type = sprite.name;
   partner.resources[resource_type] = Math.max(
     -1,
@@ -424,10 +406,13 @@ export function wrapAround(sprite, partner, game, kwargs) {
 }
 
 export function pullWithIt(sprite, partner, game, kwargs) {
-  if (!tools.oncePerStep(sprite, game, "lastpull")) return;
+  if (!tools.oncePerStep(sprite, game, "lastpull")){
+    // console.log("once per step o!", sprite.name, sprite["_lastpull"], game.time)
+    return;
+  }
   let tmp = { ...sprite.lastlocation };
   let v = tools.unitVector(partner.lastdirection());
-
+  // console.log("Pull with it!", sprite.name, sprite["_lastpull"], game.time, sprite.physics.gridsize[0], partner.speed);
   sprite._updatePos(v, partner.speed * sprite.physics.gridsize[0]);
   if (sprite.physics instanceof ContinuousPhysics) {
     sprite.speed = partner.speed;
@@ -535,7 +520,7 @@ export function subtractHealthPoints(sprite, partner, game, kwargs) {
 export function transformToRandomChild(sprite, partner, game, kwargs) {
   const stype = kwargs.stype;
   if (stype) {
-    // console.log();
+    console.log();
     const types = Object.keys(game.getSubTypes(stype));
     transformTo(sprite, partner, game, { stype: types.randomElement() });
   }
@@ -551,8 +536,8 @@ export function shieldFrom(sprite, partner, game, kwargs) {
 
 export function killIfFrontal(sprite, partner, game, kwargs) {
   const direction1 = unitVector(sprite.lastdirection());
-  const direction2 = unitVector(sprite.lastdirection());
-
+  const direction2 = unitVector(partner.lastdirection());
+  // console.log("kill if frontal")
   const dirsum = [direction1[0] + direction2[0], direction1[1] + direction2[1]];
 
   if (vectNorm(dirsum) === 0 || vectNorm(direction1) === 0) {
@@ -562,19 +547,20 @@ export function killIfFrontal(sprite, partner, game, kwargs) {
 
 export function killIfNotFrontal(sprite, partner, game, kwargs) {
   const direction1 = unitVector(sprite.lastdirection());
-  const direction2 = unitVector(sprite.lastdirection());
+  const direction2 = unitVector(partner.lastdirection());
 
   const dirsum = [direction1[0] + direction2[0], direction1[1] + direction2[1]];
-
+  // console.log("kill not frontal", dirsum, direction1)
   if (vectNorm(dirsum) !== 0 || vectNorm(direction1) === 0) {
     killSprite(sprite, partner, game, kwargs);
   }
 }
-/**
- * @param {VGDLSprite} sprite
- * @param {VGDLSprite} partner
- */
-export function wallReverse(sprite, partner, game, kwargs){
-  sprite.orientation = [-sprite.orientation[0], sprite.orientation[1]]
-  return ["wallReverse", sprite.ID || sprite, partner.ID || partner]
+
+export function increaseSpeedToAll(sprite, partner, game, kwargs) {
+  const value = kwargs.value || 0.1;
+  const stype = kwargs.stype;
+  if(!stype) return;
+  const sprites = game.getSprites(stype);
+  sprites.forEach((s) => (s.speed += value));
+  return ["increaseSpeedToAll", sprite.ID || sprite, partner.ID || partner];
 }

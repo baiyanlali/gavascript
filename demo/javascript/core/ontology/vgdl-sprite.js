@@ -1,5 +1,6 @@
 import {
   clone,
+  defaultDict,
   new_id,
   random,
   triPoints,
@@ -16,76 +17,46 @@ import {
   RED,
   RIGHT,
 } from "./constants.js";
-import { killSprite } from "./effect.js";
+import { killSprite } from "./effect";
 
 export class VGDLSprite {
+  transformedBy = {};
   name = null;
+  COLOR_DISC = [20, 80, 140, 200];
   is_static = false;
   only_active = false;
   is_avatar = false;
   is_stochastic = false;
-  color = "#ffffff";
   cooldown = 0;
-  speed = 0;
-  stationary = false;
   mass = 1;
-
-  physicstype = GridPhysics;
-  physics = null;
-  gravity = 0;
-  friction = 0;
+  physicstype = null;
   shrinkfactor = 0;
-  is_oriented = false;
-  draw_arrow = false;
-  orientation = [0, 0];
-  rect = null;
-  lastrect = null;
-  lastmove = 0;
-
-  jump_strength = 0;
-  singleon = false;
-  is_resource = false;
-  portal = false;
-  invisible = false; // not drawn. still have functionality
-  hidden = false; // not showing to observations
-
-  autotiling = false;
-  randomtiling = false;
-
-  frameRate = 0;
-  frameRemaining = 0;
-  currentFrame = 0;
-
-  disabled = false; // have no functionality. disabled sprite will not be drawn. but info can be accessed
-
-  is_npc = true;
-
-  isFirstTick = true;
-
-  on_ground = false;
-  solid = false;
-  max_speed = -1;
-
-  transformedBy = {};
-  COLOR_DISC = [20, 80, 140, 200];
   dirtyrects = [];
-  size = [10, 10];
+  size = [1, 1];
+  lastrect = null;
+  physicstype = GridPhysics;
+  speed = 0;
   ID = 0;
   direction = null;
+  color = "#ffffff";
+  orientation = [0, 0];
   location = { x: 0, y: 0 };
   healthPoints = -1;
   limitHealthPoints = 1000;
   maxHealthPoints = -1;
+  hidden = false;
+  blueprint = undefined;
 
   constructor(pos, size, args = {}) {
     args = args ?? {};
     this.name = args.key || null;
     this.location = pos ? { x: pos[0], y: pos[1] } : this.location;
+    // this.visual_location = {...this.location};
     this.size = size ?? this.size;
     this.lastlocation = { x: this.location.x, y: this.location.y };
     this.physicstype = args.physicstype || this.physicstype || GridPhysics;
     this.physics = new this.physicstype();
-    this.physics.gridsize = size;
+    this.physics.gridsize = this.size;
     this.speed = args.speed || this.speed;
     this.cooldown = args.cooldown || this.cooldown;
     this.ID = new_id();
@@ -95,6 +66,8 @@ export class VGDLSprite {
     this.healthPoints = args.healthPoints || this.healthPoints;
     this.limitHealthPoints = args.limitHealthPoints || this.limitHealthPoints;
     this.maxHealthPoints = args.maxHealthPoints || this.healthPoints;
+    this.hidden = args.hidden || this.hidden;
+    this.blueprint = args.blueprint || this.blueprint;
 
     // iterate over kwargs
     // this.extend(args);
@@ -112,14 +85,56 @@ export class VGDLSprite {
     this.lastmove = 0;
 
     // management of resources contained in the sprite
-    this.resources = 0;
+    this.resources = new defaultDict(0);
+    // this.visual_location = {...this.location}
+    // this.next_location = {...this.location}
+    // this.current_location = {...this.location}
   }
 
-  update(game) {
-    this.lastmove += 1;
+  get visual_location(){
+    return this.location;
+  }
+
+  // get location() {
+  //   // console.log("get visual location")
+  //   return this.next_location;
+  // }
+
+  // set location(value) {
+  //   // if(this.name === "avatar")
+  //   // console.log("set location")
+  //   // console.log(JSON.stringify(this.current_location), JSON.stringify(this.next_location), JSON.stringify(value));
+  //   if(this.next_location){
+  //     this.visual_location = {...this.next_location};
+  //     this.current_location = {...this.next_location}; 
+  //   }else{
+  //     this.visual_location = {...value};
+  //     this.current_location = {...value};
+  //   }
+  //   this.next_location = {...value};
+  // }
+
+  update(game, delta) {
+    // this.lastmove += delta;
+    this.lastmove ++;
+    // if(this.name === "avatar")
+    // console.log(JSON.stringify(this.current_location), JSON.stringify(this.visual_location), JSON.stringify(this.next_location))
+    // this.current_location = {...this.next_location};
+    // this.visual_location = {...this.location};
     if (!this.is_static && !this.only_active) {
-      this.physics.passiveMovement(this);
+      this.physics.passiveMovement(this, delta);
     }
+    // this.visual_location = {...this.location};
+  }
+
+  subUpdate(game, sub_idx, sum_idx) {
+    // if(this.name === "avatar")
+    //   console.log(JSON.stringify(this.current_location), JSON.stringify(this.next_location))
+    // this.visual_location = {
+    //   x: (1-sub_idx/sum_idx) * this.current_location.x + (sub_idx/sum_idx) * this.next_location.x,
+    //   y: (1-sub_idx/sum_idx) * this.current_location.y + (sub_idx/sum_idx) * this.next_location.y
+    // }
+    // this.visual_location = {...this.next_location}
   }
 
   _updatePos = (orientation, speed = null) => {
@@ -196,8 +211,8 @@ export class Flicker extends VGDLSprite {
     this.limit = args.limit || 1;
   }
 
-  update(game) {
-    super.update(game);
+  update(game, delta) {
+    super.update(game, delta);
     if (this._age > this.limit) killSprite(this, null, game);
 
     this._age++;
@@ -236,20 +251,25 @@ export class SpawnPoint extends SpriteProducer {
     this.counter = 0;
 
     this.stype = args.stype || null;
+    this.lastspawntime = -1;
   }
 
-  update(game) {
-    super.update(game);
-    if (this.stype) {
-      const rnd = random.random();
-      if (game.time % this.cooldown === 0 && rnd < this.prob) {
+  update(game, delta) {
+    super.update(game, delta);
+    if (!this.stype) return;
+    if(this.lastspawntime >= Math.round(game.time)) return;
+    if(Math.round(game.time) % this.cooldown !== 0) return;
+    const rnd = random.random();
+    // console.log("spawn ", Math.round(game.time))
+
+    if (rnd < this.prob) {
+        this.lastspawntime = Math.round(game.time);
         game._createSprite([this.stype], [this.location.x, this.location.y]);
         this.counter++;
-      }
+    }
 
-      if (this.total && this.counter >= this.total) {
-        killSprite(this, undefined, game);
-      }
+    if (this.total && this.counter >= this.total) {
+      killSprite(this, undefined, game);
     }
   }
 }
@@ -261,9 +281,9 @@ export class RandomNPC extends VGDLSprite {
     super(pos, size, args);
   }
 
-  update(game) {
+  update(game, delta) {
     this.direction = random.choice(BASEDIRS);
-    super.update(game);
+    super.update(game, delta);
     this.physics.activeMovement(this, this.direction);
   }
 }
@@ -321,8 +341,8 @@ export class OrientedFlicker extends OrientedSprite {
     this.limit = args.limit || 1;
   }
 
-  update(game) {
-    super.update(game);
+  update(game, delta) {
+    super.update(game, delta);
     if (this._age > this.limit) killSprite(this, null, game);
 
     this._age++;
@@ -337,8 +357,7 @@ export class Walker extends Missile {
     this.is_stochastic = true;
   }
 
-  update(game) {
-    // console.log(this.on_ground)
+  update(game, delta) {
     if (this.airsteering || this.lastdirection()[0] === 0) {
       let d = 0;
       if (this.orientation[0] > 0) d = 1;
@@ -346,7 +365,7 @@ export class Walker extends Missile {
       else d = random.choice([-1, 1]);
       this.physics.activeMovement(this, [d, 0]);
     }
-    super.update(game);
+    super.update(game, delta);
   }
 }
 
@@ -358,12 +377,12 @@ export class WalkJumper extends Walker {
     this.strength = 10;
   }
 
-  update(game) {
+  update(game, delta) {
     if (this.lastdirection()[0] === 0) {
       if (this.prob < random.random())
         this.physics.activeMovement(this, (0, -this.strength));
     }
-    super.update(game);
+    super.update(game, delta);
   }
 }
 
@@ -388,8 +407,8 @@ export class EraticMissile extends Missile {
     this.is_stochastic = this.prob > 0 && this.prob < 1;
   }
 
-  update(game) {
-    super.update(game);
+  update(game, delta) {
+    super.update(game, delta);
     if (random.random() < this.prob) this.orientation = random.choice(BASEDIRS);
   }
 }
@@ -420,16 +439,20 @@ export class Bomber extends Missile {
     this.counter = 0;
 
     this.stype = args.stype;
+
+    this.lastspawntime = -1;
   }
 
-  update(game) {
-    super.update(game);
+  update(game, delta) {
+    super.update(game, delta);
 
     if (
       this.stype &&
-      game.time % this.cooldown === 0 &&
+      this.lastspawntime < Math.round(game.time) &&
+      Math.round(game.time) % this.cooldown === 0 &&
       random.random() < this.prob
     ) {
+      this.lastspawntime = Math.round(game.time);
       game._createSprite([this.stype], [this.location.x, this.location.y]);
       this.counter++;
     }
@@ -438,6 +461,8 @@ export class Bomber extends Missile {
       killSprite(this, undefined, game);
     }
   }
+
+  
 }
 
 export class Door extends Immovable {
@@ -490,7 +515,7 @@ export class Chaser extends RandomNPC {
     return res;
   }
 
-  update(game) {
+  update(game, delta) {
     let options = [];
     const position_options = {};
     this._closestTargets(game).forEach((target) => {
@@ -499,7 +524,7 @@ export class Chaser extends RandomNPC {
     if (options.length === 0) {
       options = BASEDIRS;
     }
-    super.update(game);
+    // super.update(game, delta);
 
     this.physics.activeMovement(this, options.randomElement());
   }
@@ -520,9 +545,9 @@ export class BomberRandomMissile extends SpawnPoint {
     this.stypeMissile = args.stypeMissile.split(",");
   }
 
-  update(game) {
+  update(game, delta) {
     this.stype = this.stypeMissile.randomElement();
-    super.update(game);
+    super.update(game, delta);
   }
 }
 
@@ -623,7 +648,7 @@ export class AlternateChaser extends RandomNPC {
     }
   }
 
-  update(game) {
+  update(game, delta) {
     this.lastmove++;
     this.actions = [];
 
@@ -652,7 +677,7 @@ export class PathAltChaser extends AlternateChaser {
     this.lastTarget = null;
   }
 
-  update(game) {
+  update(game, delta) {
     this.physics.passiveMovement(this);
 
     let action = [0, 0];

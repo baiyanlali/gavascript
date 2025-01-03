@@ -8,13 +8,18 @@ class godot_object:
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
+	###### Godot Callable to JS Function
+	#var call = func(): return 1+1
+	#gava_script_instance.set_global("gdobj", call)
+	#gava_script_instance.run_script("console.log(Object.keys(globalThis))")
+	#gava_script_instance.run_script("console.log(globalThis.gdobj.call())")
+	#var another_call: Callable = gava_script_instance.get_global("gdobj")
+	#print(another_call.call())
+	
+	###### Godot Object to JS Object
 	var gdobj = godot_object.new()
-	print(gdobj.get("name"))
-	var call = func(): return 1+1
-	gava_script_instance.set_global("gdobj", call)
-	gava_script_instance.run_script("console.log(Object.keys(globalThis))")
-	var another_call: Callable = gava_script_instance.get_global("gdobj")
-	print(another_call.call())
+	gava_script_instance.set_global("gdobj", gdobj)
+	gava_script_instance.run_script("console.log(globalThis.gdobj.get('name'))")
 	
 	#var get_obj = gava_script_instance.get_global("gdobj")
 	#print(get_obj)
@@ -47,3 +52,4 @@ func _ready() -> void:
 	#print(a.sea.call(1))
 	#print(func(): return 1)
 	#pass
+	pass

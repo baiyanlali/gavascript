@@ -57,14 +57,14 @@ export class SpriteCounter extends Termination {
         //game.score = game.score.toFixed(1);
         game.sprite_bonus_granted_on_timestep = game.time;
       }
-      console.debug(
-        "Termination Result:",
-        this.stype,
-        game.numSprites(this.stype),
-        "/",
-        this.limit,
-        this.win,
-      );
+      // console.debug(
+        // "Termination Result:",
+        // this.stype,
+        // game.numSprites(this.stype),
+        // "/",
+        // this.limit,
+        // this.win,
+      // );
       return [true, this.win];
     } else return [false, null];
   };
