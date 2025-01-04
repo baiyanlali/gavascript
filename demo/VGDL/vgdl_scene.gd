@@ -9,8 +9,13 @@ var update: JSFunction
 var presskey: JSFunction
 var presskeyUp: JSFunction
 var start_game: JSFunction
+
+func get_time():
+	return Time.get_ticks_msec()
+
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
+	gava_script_instance.set_global("get_time", get_time)
 	gava_script_instance.start("res://javascript/main.js")
 	VGDLGame = gava_script_instance.get_global("game")
 	get_full_state = gava_script_instance.get_global("get_full_state")
@@ -18,10 +23,10 @@ func _ready() -> void:
 	presskey = gava_script_instance.get_global("presskey")
 	presskeyUp = gava_script_instance.get_global("presskeyUp")
 	start_game = gava_script_instance.get_global("startGame")
-	vgdl_renderer.parsing_state(get_full_state.call(null))
-	start_game.call(null)
+	vgdl_renderer.parsing_state(get_full_state.call_nonargs())
+	start_game.call_nonargs()
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
-	update.call(delta)
-	vgdl_renderer.parsing_state(get_full_state.call(null))
+	update.callv([delta])
+	vgdl_renderer.parsing_state(get_full_state.call_nonargs())

@@ -1,11 +1,11 @@
 import { defaultDict, includesArray, initializeDistribution } from "./tools.js";
 import { colorDict, DARKGRAY, GOLD } from "./ontology/constants.js";
-import { EOS, Immovable } from "./ontology/vgdl-sprite.js";
+import { EOS, Immovable, VGDLSprite } from "./ontology/vgdl-sprite.js";
 import { MovingAvatar } from "./ontology/avatar.js";
 import { Termination } from "./ontology/termination.js";
 import { scoreChange, stochastic_effects } from "./ontology/effect.js";
 import { Resource } from "./ontology/resource";
-import { ContinuousPhysics, distance } from "./ontology/physics.js";
+import { ContinuousPhysics, distance, quickDistance } from "./ontology/physics.js";
 
 const MAX_SPRITES = 10000;
 
@@ -43,11 +43,15 @@ export class BasicGame {
   sprite_order = ["wall", "avatar"];
 
   // contains instance lists
+  /**
+   * @type {Object.<string, VGDLSprite[]>}
+   */
   sprite_groups = {};
   // which sprite types (abstract or not) are singletons?
   singletons = [];
   // collision effects (ordered by execution order)
   collision_eff = [];
+  collision_types = [];
 
   playback_actions = [];
   playbacx_index = 0;
@@ -264,12 +268,15 @@ export class BasicGame {
     return s;
   };
 
-  _iterAll = (ignoreKilled = false) => {
+  _iterAll = (ignoreKilled = false, filter_noncollision = false) => {
     if (this.sprite_order[this.sprite_order.length - 1] !== "avatar") {
       this.sprite_order.remove("avatar");
       this.sprite_order.push("avatar");
     }
-    return this.sprite_order.reduce((base, key) => {
+    /**
+     * @type {VGDLSprite[]}
+     */
+    const result = this.sprite_order.reduce((base, key) => {
       if (this.sprite_groups[key] === undefined) return base;
       if (ignoreKilled) {
         return base.concat(
@@ -278,6 +285,13 @@ export class BasicGame {
       }
       return base.concat(this.sprite_groups[key]);
     }, []);
+
+    if (filter_noncollision) {
+      result = result.filter((s) => {
+        s.stypes.filter(x => this.collision_types.includes(x)).length > 0;
+      })
+    }
+    return result;
   };
 
   _iterAllExcept = (keys) => {
@@ -611,38 +625,6 @@ export class BasicGame {
       }
       this.collision_set = [];
     }
-
-      // for (const collision of this.collision_set) {
-      //   const stypes1 = collision[0].stypes;
-      //   const stypes2 = collision[1].stypes;
-
-      //   let effects = [];
-      //   if (collision[1] === "EOS" || collision[1] === "eos") {
-      //     this.collision_eff.forEach((eff) => {
-      //       const class1 = eff[0];
-      //       const class2 = eff[1];
-      //       if (
-      //         stypes1.includes(class1) &&
-      //         (class2 === "EOS" || class2 === "eos")
-      //       )
-      //         effects = [{ reverse: false, effect: eff[2], kwargs: eff[3] }];
-      //     });
-      //   } else {
-      //     effects = this.get_effect(stypes1, stypes2);
-      //   }
-
-      //   if (effects.length === 0) continue;
-
-      //   for (const effect_set of effects) {
-      //     let [sprite, partner] = [collision[0], collision[1]];
-      //     if (effect_set.reverse) {
-      //       [sprite, partner] = [collision[1], collision[0]];
-      //     }
-
-      //     effect_set.effect(sprite, partner, this, effect_set.kwargs);
-      //   }
-      // }
-
       
   };
 
@@ -698,14 +680,10 @@ export class BasicGame {
 
   updateCollision = () => {
     //TODO: 使用最简单的方法实现，到非格子的方法可能会有问题
-    const allSprites = this._iterAll(true);
+    const allSprites = this._iterAll(true, true);
 
     for (let i = 0; i < allSprites.length; i++) {
       const sprite1 = allSprites[i];
-
-      // Hidden 只是给observer使用的，对于游玩来说没有什么用
-      // if(sprite1.hidden === true)
-      //     continue
 
       if (
         sprite1.location.x < 0 ||
@@ -718,7 +696,7 @@ export class BasicGame {
 
       for (let j = i + 1; j < allSprites.length; j++) {
         const sprite2 = allSprites[j];
-        const dist = distance(sprite1, sprite2);
+        const dist = quickDistance(sprite1, sprite2);
 
         if (dist <= 0.99) {
           this.collision_set.push([sprite1, sprite2]);
@@ -730,7 +708,7 @@ export class BasicGame {
   /**
    * 
    * @param {number} delta, time in seconds 
-   * @param {*} now, if true, update will be called immediately
+   * @param {boolean} now, if true, update will be called immediately
    * @returns {null | string | undefined} return null if game is paused, return string if game is ended, return undefined if game is running
    */
   update = (delta, now = false) => {
@@ -741,17 +719,23 @@ export class BasicGame {
     if  (this.use_frame === false){
       if (!now) {
         this.currentTime += delta;
-        if (this.currentTime < this.updateTime) return;
+        console.log("BasicGame update", now, this.use_frame, delta, this.use_frame, this.currentTime, this.updateTime, this.currentTime < this.updateTime)
+
+        if (this.currentTime < this.updateTime) {
+          console.log("return")
+          return;
+        }
         this.currentTime %= this.updateTime;
       }
     }
-    
+
     if (this.paused) return "paused";
     if (this.ended) {
       this.paused = true;
       this.on_game_end(this.getFullState());
       return this.win;
     }
+
 
     if(this.use_frame === true)
       this.time += delta * 15;
@@ -813,6 +797,17 @@ export class BasicGame {
 
     this.keystate = {};
     this.keywait = {};
+
+    // cache collision types
+    this.collision_types = [];
+    this.collision_eff.forEach((eff) => {
+      const object = eff[0];
+      const subject = eff[1];
+      if(!this.collision_types.includes(object))
+        this.collision_types.push(object)
+      if(!this.collision_types.includes(subject))
+        this.collision_types.push(subject)
+    });
   };
 
   getPossibleActions = () => {

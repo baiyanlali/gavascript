@@ -51,6 +51,13 @@ namespace gavascript{
         return var_to_variant(context, result);
     }
 
+    // A workaround to bug: https://github.com/godotengine/godot-cpp/issues/1641
+    Variant JSFunction::call_nonargs()
+    {
+        JSValue result = JS_Call(context, object, this_object, 0, NULL);
+        return var_to_variant(context, result);
+    }
+
     String JSFunction::_to_string() const
     {
         // JSValue name = JS_GetPropertyStr(context, object, "name");
@@ -68,6 +75,7 @@ namespace gavascript{
     void gavascript::JSFunction::_bind_methods()
     {
         ClassDB::bind_method(D_METHOD("callv", "args"), &JSFunction::callv);
+        ClassDB::bind_method(D_METHOD("call_nonargs"), &JSFunction::call_nonargs);
         ClassDB::bind_vararg_method(METHOD_FLAG_VARARG, "call", &JSFunction::call);
         // ClassDB::bind_method(D_METHOD("to_string"), &JSFunction::to_string);
         // ClassDB::bind_method(D_METHOD("str"), &JSFunction::to_string);

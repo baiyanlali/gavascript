@@ -46,6 +46,10 @@ export class VGDLSprite {
   maxHealthPoints = -1;
   hidden = false;
   blueprint = undefined;
+  /**
+   * @type {Array<string>}
+   */
+  stypes = [];
 
   constructor(pos, size, args = {}) {
     args = args ?? {};

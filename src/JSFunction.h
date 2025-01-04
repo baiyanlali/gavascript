@@ -27,6 +27,7 @@ namespace gavascript {
 
         Variant callv(const Array& args);
         Variant call(const Variant **args, GDExtensionInt arg_count, GDExtensionCallError &error);
+        Variant call_nonargs();
 
         String _to_string() const;
 

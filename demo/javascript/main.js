@@ -12,8 +12,17 @@ console.log("start gavascript")
 globalThis.game = game
 globalThis.startGame = game.startGame
 globalThis.parser = parser
-globalThis.get_full_state = game.getFullState
-globalThis.update = game.update
+globalThis.get_full_state = () => {
+    const prev_time = globalThis.get_time.call()
+    const result = game.getFullState()
+    console.log("get_full_state time: ", globalThis.get_time.call() - prev_time)
+    return result
+}
+globalThis.update = (delta, now=false) => {
+    const prev_time = globalThis.get_time.call()
+    game.update(delta, now=false)
+    console.log("update time: ", globalThis.get_time.call() - prev_time)
+}
 globalThis.presskey = game.presskey
 globalThis.presskeyUp = game.presskeyUp
 export default { parser, game }

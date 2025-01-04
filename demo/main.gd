@@ -17,10 +17,14 @@ func _ready() -> void:
 	#print(another_call.call())
 	
 	###### Godot Object to JS Object
-	var gdobj = godot_object.new()
-	gava_script_instance.set_global("gdobj", gdobj)
-	gava_script_instance.run_script("console.log(globalThis.gdobj.get('name'))")
+	#var gdobj = godot_object.new()
+	#gava_script_instance.set_global("gdobj", gdobj)
+	#gava_script_instance.run_script("console.log(globalThis.gdobj.get('name'))")
 	
+	###### Godot Call JSFunction
+	gava_script_instance.run_script("const a = (b, c) => {return b+c}; globalThis.test_func = a; console.log(Object.keys(globalThis))")
+	var func_a: JSFunction = gava_script_instance.get_global("test_func")
+	print(func_a.call(1, 2))
 	#var get_obj = gava_script_instance.get_global("gdobj")
 	#print(get_obj)
 	#print(get_obj.name)
