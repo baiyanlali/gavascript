@@ -5,7 +5,7 @@ const PIXEL_RATIO = 64
 var VGDLObjects: Dictionary = {}
 
 func parsing_state(state: JSObject):
-	var active_object_id = []
+	var active_object_id: Array[int] = []
 	for obj in state.objects:
 		active_object_id.append(obj.ID)
 		if VGDLObjects.has(obj.ID):
@@ -18,9 +18,9 @@ func parsing_state(state: JSObject):
 			add_child(current_object)
 			VGDLObjects[obj.ID] = current_object
 			current_object.update_object_state(obj)
-	var dead_objects: Array = VGDLObjects.keys()\
-		.filter(func(x): x not in active_object_id)
-	
+
+	var dead_objects: Array = VGDLObjects.keys().filter(func(x): return x not in active_object_id)
+		
 	for dead_obj in dead_objects:
 		VGDLObjects[dead_obj].queue_free()
 		VGDLObjects.erase(dead_obj)

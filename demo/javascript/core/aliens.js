@@ -67,34 +67,34 @@ BasicGame square_size=40
     InteractionSet
         avatar wall > stepBack
         box avatar  > bounceForward
-        box wall box  > undoAll
         box hole    > killSprite scoreChange=1
+        box wall box  > undoAll
     TerminationSet
         SpriteCounter stype=box    limit=0 win=True`
 
-export const sokoban_map = `
-wwwwwwwwwwwww
-w........w..w
-w...1.......w
-w...A.1.w.0ww
-www.w1..wwwww
-w.......w.0.w
-w.1........ww
-w..........ww
-wwwwwwwwwwwww`
+// export const sokoban_map = `
+// wwwwwwwwwwwww
+// w........w..w
+// w...1.......w
+// w...A.1.w.0ww
+// www.w1..wwwww
+// w.......w.0.w
+// w.1........ww
+// w..........ww
+// wwwwwwwwwwwww`
 
 
-// export const sokoban_map = 
-// `
-// WWWWWWWWWWWW
-// W    W     W
-// W C  W  H  W
-// W    WW    W
-// W    W     W
-// W        WWW
-// W  P W  C HW
-// W   W      W
-// WWWWWWWWWWWW`
+export const sokoban_map = 
+`
+WWWWWWWWWWWW
+W    W     W
+W C  W  H  W
+W    WW    W
+W    W     W
+W        WWW
+W  P W  C HW
+W   W      W
+WWWWWWWWWWWW`
 
 // export const fps_test = `
 // BasicGame square_size=40 FPS=true

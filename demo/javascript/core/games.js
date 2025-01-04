@@ -287,9 +287,9 @@ export class BasicGame {
     }, []);
 
     if (filter_noncollision) {
-      result = result.filter((s) => {
-        s.stypes.filter(x => this.collision_types.includes(x)).length > 0;
-      })
+      return result.filter((s) => 
+        s.stypes.filter(x => this.collision_types.includes(x)).length > 0
+      )
     }
     return result;
   };
@@ -399,6 +399,9 @@ export class BasicGame {
     const ias = this.ignoredattributes;
     const obs = {};
     const killed = {};
+    /**
+     * @type {VGDLSprite[]}
+     */
     const objects = [];
     const actions = Object.keys(this.keystate).filter((key) => {
       return this.keystate[key];
@@ -574,6 +577,7 @@ export class BasicGame {
   _effectHandling = () => {
     //最多处理碰撞7次
     for (let iter_time = 0; iter_time < 7; iter_time++) {
+      // console.log("EffectHandling", iter_time)
       this.updateCollision();
 
       if (this.collision_set.length === 0) return;
@@ -680,7 +684,11 @@ export class BasicGame {
 
   updateCollision = () => {
     //TODO: 使用最简单的方法实现，到非格子的方法可能会有问题
+    // console.log("iter all")
     const allSprites = this._iterAll(true, true);
+    
+    // console.log("updateCollision", allSprites.length)
+
 
     for (let i = 0; i < allSprites.length; i++) {
       const sprite1 = allSprites[i];
@@ -719,10 +727,10 @@ export class BasicGame {
     if  (this.use_frame === false){
       if (!now) {
         this.currentTime += delta;
-        console.log("BasicGame update", now, this.use_frame, delta, this.use_frame, this.currentTime, this.updateTime, this.currentTime < this.updateTime)
+        // console.log("BasicGame update", now, this.use_frame, delta, this.use_frame, this.currentTime, this.updateTime, this.currentTime < this.updateTime)
 
         if (this.currentTime < this.updateTime) {
-          console.log("return")
+          // console.log("return")
           return;
         }
         this.currentTime %= this.updateTime;
@@ -808,6 +816,7 @@ export class BasicGame {
       if(!this.collision_types.includes(subject))
         this.collision_types.push(subject)
     });
+    // console.log(this.collision_types)
   };
 
   getPossibleActions = () => {

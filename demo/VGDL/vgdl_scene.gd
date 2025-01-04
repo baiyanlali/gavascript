@@ -10,6 +10,14 @@ var presskey: JSFunction
 var presskeyUp: JSFunction
 var start_game: JSFunction
 
+const VGDLInputMapping: Dictionary = {
+	"move_up": "UP",
+	"move_down": "DOWN",
+	"move_left": "LEFT",
+	"move_right": "RIGHT",
+	"hit": "SPACE"
+}
+
 func get_time():
 	return Time.get_ticks_msec()
 
@@ -28,5 +36,11 @@ func _ready() -> void:
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
+	for action_mapping in VGDLInputMapping.keys():
+		var vgdl_action = VGDLInputMapping[action_mapping]
+		if Input.is_action_just_pressed(action_mapping):
+			presskey.call(vgdl_action)
+		elif Input.is_action_just_released(action_mapping):
+			presskeyUp.call(vgdl_action)
 	update.callv([delta])
 	vgdl_renderer.parsing_state(get_full_state.call_nonargs())

@@ -1,12 +1,13 @@
 [gd_scene load_steps=3 format=3 uid="uid://chwdup0jem30d"]
 
 [ext_resource type="Script" path="res://VGDL/vgdl_object.gd" id="1_8eiff"]
-[ext_resource type="Texture2D" uid="uid://8o0cfjlgefm3" path="res://icon.svg" id="1_xjjda"]
+[ext_resource type="Texture2D" uid="uid://qfclapfh6fyc" path="res://sprites/gvgai/oryx/alien1.png" id="2_becb7"]
 
 [node name="VGDLObject" type="Node2D"]
 script = ExtResource("1_8eiff")
 metadata/_edit_horizontal_guides_ = [-64.0]
 
 [node name="Icon" type="Sprite2D" parent="."]
-scale = Vector2(0.5, 0.5)
-texture = ExtResource("1_xjjda")
+texture_filter = 1
+scale = Vector2(3, 3)
+texture = ExtResource("2_becb7")
