@@ -10,7 +10,7 @@ game.buildLevel(aliens_map)
 
 console.log("start gavascript")
 globalThis.game = game
-globalThis.game_start = game.run
+globalThis.startGame = game.startGame
 globalThis.parser = parser
 globalThis.get_full_state = game.getFullState
 globalThis.update = game.update

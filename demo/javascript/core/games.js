@@ -727,6 +727,12 @@ export class BasicGame {
     }
   };
 
+  /**
+   * 
+   * @param {number} delta, time in seconds 
+   * @param {*} now, if true, update will be called immediately
+   * @returns {null | string | undefined} return null if game is paused, return string if game is ended, return undefined if game is running
+   */
   update = (delta, now = false) => {
     // if (this.key_handler === "Pulse") {
     //   if (!now) return;
@@ -766,6 +772,9 @@ export class BasicGame {
     this.collision_set = [];
   };
 
+  /**
+   * Start the game.
+   */
   startGame = () => {
     this.reset();
     this.paused = false;

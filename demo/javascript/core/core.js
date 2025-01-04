@@ -116,6 +116,13 @@ export class VGDLParser {
   ignore_colors = ["wall", "avatar"];
   var_colors = {};
 
+  /**
+   * 
+   * @param {string} tree 
+   * @param {number} seed 
+   * @returns {BasicGame}
+   */
+
   parseGame = (tree, seed = null) => {
     if (!(tree instanceof Node)) tree = indentTreeParser(tree);
     const root = tree.children[0];
