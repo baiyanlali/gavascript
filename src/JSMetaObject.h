@@ -18,7 +18,7 @@ namespace gavascript {
     public:
 
         JSMetaObject(){
-            throw "[GavaScript Error] Do not init JSMetaObject without context and object";
+            // Do not use this constructor
         }
 
         JSMetaObject(JSContext *ctx, const JSValue& object){
@@ -35,7 +35,8 @@ namespace gavascript {
 
         JSValue get_object(){
             if(JS_IsUndefined(object)){
-                throw "[GavaScript Error] Object is undefined";
+                return JS_EXCEPTION;
+                // throw "[GavaScript Error] Object is undefined";
             }
             return object;
         }

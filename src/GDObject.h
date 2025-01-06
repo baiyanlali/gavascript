@@ -15,7 +15,7 @@ using namespace godot;
 namespace gavascript {
     class GDObject {
     public:
-        static JSClassID GDObject::class_id;
+        static JSClassID class_id;
         static void register_class(JSContext* ctx);
 
         static void js_finalizer(JSRuntime *rt, JSValue val);

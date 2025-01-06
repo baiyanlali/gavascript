@@ -6,7 +6,7 @@
 [node name="Node2D" type="Node2D"]
 script = ExtResource("1_qjn3m")
 
-[node name="GavaScriptInstance" type="GavaScriptInstance" parent="."]
-
 [node name="GodotFrontend" type="Node" parent="."]
 script = ExtResource("2_d046p")
+
+[node name="GavaScriptInstance" type="GavaScriptInstance" parent="."]

@@ -8,23 +8,40 @@ class godot_object:
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
+	
+	## Test JS
+	#var result1 = gava_script_instance.run_script(";1+2;")
+	#print(result1)
+	print("----- Test JS Function -----")
+	#gava_script_instance.run_script('\nprint("abc")')
+	gava_script_instance.run_script("console.log(321)")
+	var result = gava_script_instance.run_script("const a = 1+1; a")
+	print(result)
+	
 	###### Godot Callable to JS Function
-	#var call = func(): return 1+1
-	#gava_script_instance.set_global("gdobj", call)
-	#gava_script_instance.run_script("console.log(Object.keys(globalThis))")
-	#gava_script_instance.run_script("console.log(globalThis.gdobj.call())")
-	#var another_call: Callable = gava_script_instance.get_global("gdobj")
-	#print(another_call.call())
+	print("----- Test Callable to JS Function -----")
+	var call = func(): return 1+1
+	gava_script_instance.set_global("gdobj", call)
+	gava_script_instance.run_script("console.log(Object.keys(globalThis))")
+	gava_script_instance.run_script("console.log(globalThis.gdobj.call())")
+	var another_call: Callable = gava_script_instance.get_global("gdobj")
+	print(another_call.call())
 	
 	###### Godot Object to JS Object
-	#var gdobj = godot_object.new()
-	#gava_script_instance.set_global("gdobj", gdobj)
-	#gava_script_instance.run_script("console.log(globalThis.gdobj.get('name'))")
+	print("----- Godot Object to JS Object -----")
+	var gdobj = godot_object.new()
+	gava_script_instance.set_global("gdobj", gdobj)
+	
+	gava_script_instance.run_script("console.log(1, 2))")
+	gava_script_instance.run_script("console.log(globalThis.gdobj.get('name'))")
 	
 	###### Godot Call JSFunction
-	gava_script_instance.run_script("const a = (b, c) => {return b+c}; globalThis.test_func = a; console.log(Object.keys(globalThis))")
-	var func_a: JSFunction = gava_script_instance.get_global("test_func")
-	print(func_a.call(1, 2))
+	print("----- Test Call JSFunction -----")
+	#gava_script_instance.run_script("const a = (b, c) => {return b+c}; globalThis.test_func = a; console.log(Object.keys(globalThis))")
+	#var func_a: JSFunction = gava_script_instance.get_global("test_func")
+	#print(func_a.call(1, 2))
+	#print(func_a.callv([1, 2]))
+	
 	#var get_obj = gava_script_instance.get_global("gdobj")
 	#print(get_obj)
 	#print(get_obj.name)

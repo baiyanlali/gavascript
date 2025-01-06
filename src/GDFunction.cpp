@@ -5,7 +5,7 @@
 #include <gdextension_interface.h>
 namespace gavascript {
     
-    JSClassID GDFunction::class_id;
+    JSClassID GDFunction::class_id = 0;
 
     void GDFunction::register_class(JSContext* ctx) {
         JSClassDef class_def = {
@@ -27,7 +27,7 @@ namespace gavascript {
     }
 
     void GDFunction::js_finalizer(JSRuntime *rt, JSValue val) {
-        GDFunction* func = (GDFunction*)JS_GetOpaque(val, GDFunction::class_id);
+        GDFunction* func = (GDFunction*)JS_GetOpaque(val, class_id);
         if (func) {
             delete func;
         }

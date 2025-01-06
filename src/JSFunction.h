@@ -17,7 +17,7 @@ namespace gavascript {
 
     public:
         JSFunction(){
-            throw "[GavaScript Error] Do not init JSFunction without context and object";
+            // throw "[GavaScript Error] Do not init JSFunction without context and object";
         }
 
         JSFunction(JSContext* context, const JSValue& function, const JSValue& this_object): 

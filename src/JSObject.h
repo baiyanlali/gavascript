@@ -16,7 +16,7 @@ namespace gavascript{
 
     public:
         JSObject(){
-            throw "[GavaScript Error] Do not init JSObject without context and object";
+            // "[GavaScript Error] Do not init JSObject without context and object";
         };
         JSObject(JSContext* context, const JSValue& object): 
             JSMetaObject(context, object) {};

@@ -13,3 +13,4 @@
 venv
 /demo/.godot
 cache/
+.DS_Store

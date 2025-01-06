@@ -81,7 +81,8 @@ namespace gavascript{
                 return JS_NULL;
             default:
             //TODO
-                throw "custom variant to var Not implemented";
+                return JS_NULL;
+                //throw "custom variant to var Not implemented";
         
         }
     }

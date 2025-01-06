@@ -19,9 +19,9 @@ env = SConscript("godot-cpp/SConstruct")
 env.Append(CPPPATH=["src/"])
 sources = Glob("src/*.cpp")
 
-quickjs_version = open("thirdparty/quickjs/VERSION", "r").read().split("\n")[0]
+# quickjs_version = open("thirdparty/quickjs/VERSION", "r").read().split("\n")[0]
 cppdefines = [
-    f'CONFIG_VERSION="{quickjs_version}"',
+    # f'CONFIG_VERSION="{quickjs_version}"',
     'CONFIG_BIGNUM=y',
     'MSVC_VERSION=14.3'
 ]
@@ -58,7 +58,8 @@ if env['CC'] == 'cl':  # MSVC 编译器的环境变量
     # env.Append(CFLAGS='/wd4820')  # Padding added after construct
     # env.Append(CFLAGS='/wd4996')  # -Wdeprecated-declarations
     # env.Append(CFLAGS='/wd5045')  # Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
-
+# else:
+#     env.Append(LINKFLAGS=['-undefined', 'dynamic_lookup'])
 
 sources.extend(
     [

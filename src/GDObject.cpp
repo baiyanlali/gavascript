@@ -1,7 +1,7 @@
 #include "GDObject.h"
 
 namespace gavascript {
-    JSClassID GDObject::class_id;
+    JSClassID GDObject::class_id = 0;
     void gavascript::GDObject::register_class(JSContext *ctx)
     {
         JSClassDef class_def = {
@@ -30,7 +30,7 @@ namespace gavascript {
 
     void gavascript::GDObject::js_finalizer(JSRuntime *rt, JSValue val)
     {
-        GDObject* func = (GDObject*)JS_GetOpaque(val, GDObject::class_id);
+        GDObject* func = (GDObject*)JS_GetOpaque(val, class_id);
         if (func) {
             delete func;
         }
@@ -46,7 +46,7 @@ namespace gavascript {
     }
     JSValue GDObject::get(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic)
     {
-        auto gdobj = (GDObject *)JS_GetOpaque(this_val, GDObject::class_id);
+        auto gdobj = (GDObject *)JS_GetOpaque(this_val, class_id);
         if (!gdobj) {
             return JS_EXCEPTION;
         }
@@ -61,7 +61,7 @@ namespace gavascript {
     }
     JSValue GDObject::set(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic)
     {
-        auto gdobj = (GDObject *)JS_GetOpaque(this_val, GDObject::class_id);
+        auto gdobj = (GDObject *)JS_GetOpaque(this_val, class_id);
         if (!gdobj) {
             return JS_EXCEPTION;
         }
