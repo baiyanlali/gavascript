@@ -24,21 +24,10 @@ namespace gavascript{
                 UtilityFunctions::print("Create Object Binding");
                 JSValue obj = JS_NewObjectClass(ctx, GDObject::class_id);
                 GDObject* gdobj = new GDObject();
+                // gdobj->godot_object = Ref<Object>(value);
                 gdobj->godot_object = value;
                 JS_SetOpaque(obj, gdobj);
                 return obj;
-                // throw "custom variant to var for object type Not implemented";
-                // Object *obj = value;
-                // if (obj == NULL)
-                // 	return JS_NULL;
-                // JavaScriptGCHandler *data = BINDING_DATA_FROM_GD(ctx, obj);
-                // ERR_FAIL_NULL_V(data, JS_UNDEFINED);
-                // ERR_FAIL_NULL_V(data->javascript_object, JS_UNDEFINED);
-                // ERR_FAIL_COND_V(data->context != ctx, (JS_UNDEFINED));
-                // JSValue js_obj = JS_MKPTR(JS_TAG_OBJECT, data->javascript_object);
-                // JS_DupValue(ctx, js_obj);
-
-                // return js_obj;
             }
             case Variant::ARRAY: {
                 Array arr = value;
@@ -64,6 +53,7 @@ namespace gavascript{
                 // UtilityFunctions::print("Create Callable Binding");
                 JSValue callable = JS_NewObjectClass(ctx, GDFunction::class_id);
                 GDFunction* func = new GDFunction();
+                // func->callable = Ref<Callable>(value);
                 func->callable = value;
                 JS_SetOpaque(callable, func);
                 return callable;

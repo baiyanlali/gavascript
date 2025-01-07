@@ -23,7 +23,12 @@ namespace gavascript {
         JSFunction(JSContext* context, const JSValue& function, const JSValue& this_object): 
             JSMetaObject(context, function) {
             this->this_object = this_object;
+            JS_DupValue(context, function);
         };
+
+        ~JSFunction(){
+            JS_FreeValue(context, this_object);
+        }
 
         Variant callv(const Array& args);
         Variant call(const Variant **args, GDExtensionInt arg_count, GDExtensionCallError &error);

@@ -51,24 +51,35 @@ namespace gavascript {
             return JS_EXCEPTION;
         }
 
+        // if(!gdobj->godot_object.is_valid()){
+        //     return JS_EXCEPTION;
+        // }
+
         if(argc != 1){
             return JS_EXCEPTION;
         }
 
-        auto ret = gdobj->godot_object.get(var_to_variant(ctx, argv[0]));
+        // Variant ret = gdobj->godot_object->get(var_to_variant(ctx, argv[0]));
+        Variant ret = gdobj->godot_object.get(var_to_variant(ctx, argv[0]));
         
         return variant_to_var(ctx, ret);
     }
     JSValue GDObject::set(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic)
     {
-        auto gdobj = (GDObject *)JS_GetOpaque(this_val, class_id);
+        GDObject* gdobj = (GDObject *)JS_GetOpaque(this_val, class_id);
         if (!gdobj) {
             return JS_EXCEPTION;
         }
+
+        // if(!gdobj->godot_object.is_valid()){
+        //     return JS_EXCEPTION;
+        // }
+
         if(argc != 2){
             return JS_EXCEPTION;
         }
 
+        // gdobj->godot_object->set(var_to_variant(ctx, argv[0]), var_to_variant(ctx, argv[1]));
         gdobj->godot_object.set(var_to_variant(ctx, argv[0]), var_to_variant(ctx, argv[1]));
         return JS_UNDEFINED;
     }

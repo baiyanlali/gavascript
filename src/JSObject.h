@@ -19,7 +19,13 @@ namespace gavascript{
             // "[GavaScript Error] Do not init JSObject without context and object";
         };
         JSObject(JSContext* context, const JSValue& object): 
-            JSMetaObject(context, object) {};
+            JSMetaObject(context, object) {
+                JS_DupValue(context, object);
+            };
+
+        ~JSObject(){
+            JS_FreeValue(context, object);
+        }
 
     protected:
         static void _bind_methods();

@@ -47,12 +47,21 @@ namespace gavascript {
     {
         GDFunction *func = static_cast<GDFunction *>(JS_GetOpaque(this_val, class_id));
         
+        if(!func){
+            return JS_EXCEPTION;
+        }
+
+        // if(!func->callable.is_valid()){
+        //     return JS_EXCEPTION;
+        // }
+
         Array args;
         args.resize(argc);
         for (int i = 0; i < argc; i++) {
             args.push_back(var_to_variant(ctx, argv[i]));
         }
         // Callable binded_callable = func->callable.bindv(args);
+        // Variant ret = func->callable->callv(args);
         Variant ret = func->callable.callv(args);
         // return JS_NULL;
         return variant_to_var(ctx, ret);
