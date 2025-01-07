@@ -14,3 +14,4 @@ venv
 /demo/.godot
 cache/
 .DS_Store
+.sconsign.dblite

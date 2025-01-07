@@ -38,7 +38,7 @@ namespace gavascript{
                     }
                     return arr;
                 } else if (JS_IsFunction(ctx, p_val)) {
-                    JSFunction *func = memnew(JSFunction(ctx, p_val, JS_UNDEFINED));
+                    Ref<JSFunction> func(memnew(JSFunction(ctx, p_val, JS_UNDEFINED)));
                     return func;
                 } else if (GDFunction::is_instance(ctx, p_val)) {
                     // UtilityFunctions::print("Get GDFunction");
@@ -59,7 +59,7 @@ namespace gavascript{
                 }
                  else { 
                     // UtilityFunctions::print("Get JSObject");
-                    JSObject *obj = memnew(JSObject(ctx, p_val));
+                    JSObject *obj(memnew(JSObject(ctx, p_val)));
                     return obj;
                     // // Plain Object as Dictionary
                     // List<void *> stack;
