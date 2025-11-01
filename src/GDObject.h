@@ -23,8 +23,15 @@ namespace gavascript {
         static bool is_instance(JSContext *ctx, JSValueConst val);
 
         GDObject() {};
+        ~GDObject();
+        
+        // Store the object variant and track if it's a reference-counted type
         Variant godot_object;
-
+        bool is_ref_counted = false;
+        
+        // Helper to safely set the object and handle ref counting
+        void set_object(const Variant &p_object);
+        
         static JSValue get(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic);
         static JSValue set(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic);
     };

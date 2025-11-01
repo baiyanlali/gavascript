@@ -7,6 +7,7 @@
 #include "quickjs.h"
 #include "GDFunction.h"
 #include "GDObject.h"
+#include <vector>
 
 using namespace godot;
 
@@ -14,6 +15,42 @@ using namespace godot;
 namespace gavascript{
 
 HashMap<String, const char *> GavaScriptInstance::class_remap;
+
+// store registered class names so we can access them from C-function magic
+static std::vector<String> g_registered_godot_classes;
+
+// JS constructor for Godot classes. magic is the index into g_registered_godot_classes
+JSValue Godot_class_constructor(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic) {
+	if (magic < 0 || magic >= (int)g_registered_godot_classes.size()) {
+		return JS_EXCEPTION;
+	}
+
+	String class_name = g_registered_godot_classes[magic];
+
+	// Use ClassDB to instantiate the Godot class by name. This returns a Variant containing an Object.
+	// Assumption: ClassDB::instantiate returns a Variant wrapping the new Object instance.
+	Variant instance = ClassDB::instantiate(class_name);
+	if (instance.get_type() == Variant::NIL) {
+		UtilityFunctions::printerr(String("[GavaScript] Failed to instantiate Godot class: ") + class_name);
+		return JS_EXCEPTION;
+	}
+
+	// Wrap the Godot Object Variant into a GDObject instance for JS
+	JSValue obj = JS_NewObjectClass(ctx, GDObject::class_id);
+	GDObject* gdobj = new GDObject();
+	gdobj->set_object(instance);  // Use helper to properly handle reference counting
+	JS_SetOpaque(obj, gdobj);
+	return obj;
+}
+
+// helper to register a Godot class name and create a JS function on a namespace object
+void register_godot_class_in_namespace(JSContext *ctx, JSValue ns_obj, const char *class_name) {
+	int index = (int)g_registered_godot_classes.size();
+	g_registered_godot_classes.push_back(String(class_name));
+	// create JS function with magic = index
+	JSValue ctor = JS_NewCFunctionMagic(ctx, Godot_class_constructor, class_name, 0, JS_CFUNC_generic_magic, index);
+	JS_DefinePropertyValueStr(ctx, ns_obj, class_name, ctor, JS_PROP_ENUMERABLE | JS_PROP_CONFIGURABLE);
+}
 
 
 void GavaScriptInstance::_bind_methods() {
@@ -43,6 +80,23 @@ GavaScriptInstance::GavaScriptInstance() {
 	godot_object = JS_NewObject(context);
 	GDFunction::register_class(context);
 	GDObject::register_class(context);
+
+	// Add a global `Godot` namespace that will contain all built-in Godot classes
+	JSValue godot_ns = JS_NewObject(context);
+	
+	// Get all available Godot classes from ClassDB
+	PackedStringArray class_list = ClassDB::get_class_list();
+	for(int i = 0; i < class_list.size(); i++) {
+		StringName class_name = class_list[i];
+		// Only register instantiatable classes (skip abstract classes)
+		if(ClassDB::can_instantiate(class_name)) {
+			String str_name = String(class_name);
+			register_godot_class_in_namespace(context, godot_ns, str_name.utf8().get_data());
+			// UtilityFunctions::print("[GavaScript] Registered Godot class: " + str_name);
+		}
+	}
+	
+	JS_DefinePropertyValueStr(context, global_object, "Godot", godot_ns, PROP_DEF_DEFAULT);
 
 	add_global_console();
 
