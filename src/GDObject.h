@@ -34,7 +34,18 @@ namespace gavascript {
         
         static JSValue get(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic);
         static JSValue set(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic);
+
+        static JSValue js_get_property(JSContext *ctx, JSValueConst obj, JSAtom atom, JSValueConst receiver);
+        static int js_set_property(JSContext *ctx, JSValueConst obj, JSAtom atom, JSValueConst value, JSValueConst receiver, int flags);
+        static int js_has_property(JSContext *ctx, JSValueConst obj, JSAtom atom);
+
+        JSValue exotic_get(JSContext *ctx, JSValueConst obj, JSAtom prop, JSValueConst receiver);
+        int exotic_set(JSContext *ctx, JSValue obj, JSAtom prop, JSValue value, JSValue receiver, int flags);
+
+        
     };
+
+    
 }
 
 #endif
