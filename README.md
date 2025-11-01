@@ -1,72 +1,72 @@
 # Gavascript: Godot JavaScript Runtime Plugin
 
-Gavascript 是一个为 [Godot Engine](https://godotengine.org/) 提供 JavaScript 运行环境的插件。它允许开发者在 Godot 项目中直接运行和交互 JavaScript 代码，实现更灵活的脚本扩展和跨语言集成。
+Gavascript is a plugin that provides a JavaScript runtime environment for the Godot Engine. It allows developers to run and interact with JavaScript code directly inside Godot projects, enabling more flexible scripting and cross-language integration.
 
-## 功能特性
+## Features
 
-- 在 Godot 中嵌入 JavaScript 运行时
-- 以GDExtension方式提供插件，无需重新编译整个godot引擎。
-- 支持 Godot 与 JS 之间的数据和方法互通
-- 支持 Windows、Mac 平台（其他平台有待测试）
+- Embed a JavaScript runtime inside Godot
+- Distributed as a GDExtension plugin so you don't need to rebuild the entire Godot engine
+- Supports data and method interop between Godot and JS
+- Supports Windows and macOS platforms (other platforms untested)
 
-## 目录结构
+## Repository layout
 
 ```
-demo/                # Godot 示例项目
-godot-cpp/           # Godot C++ 绑定相关代码
-src/                 # 插件核心源码（C++）
-thirdparty/          # 第三方依赖
-SConstruct           # 构建脚本
+demo/                # Godot example project
+godot-cpp/           # Godot C++ binding code
+src/                 # Core plugin source code (C++)
+thirdparty/          # Third-party dependencies
+SConstruct           # Build script
 ```
 
-## 快速开始
+## Quick start
 
-1. 克隆仓库
+1. Clone the repository
 
-```shell
+```powershell
 git clone https://github.com/baiyanlali/gavascript.git
 ```
 
-2. 构建插件
+2. Build the plugin
 
-确保已安装 Godot 及相关 C++ 构建工具（如 SCons、CMake）。
+Make sure Godot and the required C++ build tools (for example SCons, CMake) are installed.
 
-```shell
+```powershell
 cd gavascript
 scons platform=windows
 ```
 
-3. 在 Godot 项目中集成
+3. Integrate into a Godot project
 
-- 将 `bin/` 目录下生成的插件文件加入你的 Godot 项目
-- 在 demo 目录下有示例项目，可直接打开运行
+- Add the generated files in the `bin/` directory to your Godot project
+- The `demo/` folder contains an example project you can open and run directly
 
-4. 在 Godot 脚本中调用 JS
+4. Call JS from Godot scripts
 
-参考 main.gd 和 javascript 目录下的示例，了解如何在 GDScript 中调用 JS 代码。
+See `main.gd` and the `javascript` folder examples for how to call JS code from GDScript.
 
-## 示例
+Example:
 
 ```gdscript
 var js_instance = GavascriptInstance.new()
 js_instance.eval("console.log('Hello from JS!')")
 ```
 
-## 依赖
+## Dependencies
 
 - Godot 4.x
 - C++17
-- SCons/CMake
+- SCons / CMake
 - [godot-cpp](https://github.com/godotengine/godot-cpp)
 
-## 贡献
+## Contributing
 
-欢迎提交 issue 和 PR，完善功能或适配更多平台。
+Issues and pull requests are welcome. Contributions to expand features or support more platforms are appreciated.
 
-## 许可证
+## License
 
 MIT License
 
 ---
 
-如需更详细的说明或 API 文档，请补充具体需求。
+If you need more detailed documentation or API references, please let me know what specifics you want and I can add them.
