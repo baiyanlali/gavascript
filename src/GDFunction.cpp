@@ -58,7 +58,7 @@ namespace gavascript {
         Array args;
         args.resize(argc);
         for (int i = 0; i < argc; i++) {
-            args.push_back(var_to_variant(ctx, argv[i]));
+            args[i] = var_to_variant(ctx, argv[i]);
         }
         // Callable binded_callable = func->callable.bindv(args);
         // Variant ret = func->callable->callv(args);
