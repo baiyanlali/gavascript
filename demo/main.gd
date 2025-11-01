@@ -35,6 +35,7 @@ func _ready() -> void:
 	gava_script_instance.run_script("console.log(1, 2))")
 	gava_script_instance.run_script("console.log(globalThis.gdobj.get('name'))")
 	
+	
 	###### Godot Call JSFunction
 	print("----- Test Call JSFunction -----")
 	#gava_script_instance.run_script("const a = (b, c) => {return b+c}; globalThis.test_func = a; console.log(Object.keys(globalThis))")

@@ -44,12 +44,13 @@ namespace gavascript {
         GDCLASS(GavaScriptInstance, Node)
     
     protected:
-        static String resolve_module_file(const String &file);
+        String resolve_module_file(const String &file);
         static JSModuleDef *js_module_loader(JSContext *ctx, const char *module_name, void *opaque);
 
         static void _bind_methods();
         JSRuntime *runtime;
         JSContext *context;
+        String module_root_dir; // The root directory for resolving modules
 
         struct ClassBindData {
             JSClassID class_id;

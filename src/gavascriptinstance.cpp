@@ -34,6 +34,7 @@ GavaScriptInstance::GavaScriptInstance() {
     ClassBindData data;
     runtime = JS_NewRuntime();
     context = JS_NewContext(runtime);
+    module_root_dir = String(); // Initialize empty module root dir
 	// JS_AddIntrinsicOperators(context);
 	JS_SetModuleLoaderFunc(runtime, NULL, js_module_loader, this);
 	JS_SetContextOpaque(context, this);
@@ -47,7 +48,7 @@ GavaScriptInstance::GavaScriptInstance() {
 
 	// auto test = "console.log(123)";
 	// JS_Eval(context, test, strlen(test), "ttest", JS_EVAL_TYPE_GLOBAL);
-    UtilityFunctions::print("GavaScript Instance Created");
+    UtilityFunctions::print("[GavaScript] GavaScript Instance Created");
 }
 
 GavaScriptInstance::~GavaScriptInstance() {
@@ -71,6 +72,14 @@ Variant GavaScriptInstance::start(String module_name)
 	String file = resolve_module_file(module_name);
 	// ERR_FAIL_COND_MSG(file.is_empty(), "Failed to resolve module: '" + module_name + "'.");
 	ERR_FAIL_COND_V_MSG(file.is_empty(), Variant(), "Failed to open module: '" + file + "'.");
+	
+	// Set the module root directory to the directory containing the entry module
+	int last_slash = file.rfind("/");
+	if (last_slash != -1) {
+		module_root_dir = file.substr(0, last_slash);
+		UtilityFunctions::print("[GavaScript] Set module root directory to: " + module_root_dir);
+	}
+	
 	auto fileAccess = FileAccess::open(file, FileAccess::READ);
 	// ERR_FAIL_COND_MSG(fileAccess.is_null(), "Failed to open module: '" + file + "'.");
 	ERR_FAIL_COND_V_MSG(fileAccess.is_null(), Variant(), "Failed to open module: '" + file + "'.");
@@ -205,7 +214,7 @@ JSAtom GavaScriptInstance::get_atom(JSContext *ctx, const StringName &p_key) {
 }
 
 void GavaScriptInstance::add_global_console() {
-	// UtilityFunctions::print("GavaScript Add Global Console");
+	// UtilityFunctions::print("[GavaScript] Add Global Console");
 	JSValue console = JS_NewObject(context);
 	
 	// JSValue log = JS_NewCFunctionMagic(context, console_log, "log", JS_CFUNC_generic_magic);
@@ -255,13 +264,161 @@ String GavaScriptInstance::resolve_module_file(const String &file) {
 	if (const String *ptr = resolve_path_cache.getptr(file)) {
 		return *ptr;
 	}
-	String path = file;
-	if (!path.ends_with(".js")) {
-		path += ".js";
+
+	// If the specifier looks like a relative or absolute path, try to resolve
+	// it directly (preserve previous behavior).
+	String spec = file;
+	bool is_relative = false;
+	if (spec.begins_with("./") || spec.begins_with("../") || spec.begins_with("/")) {
+		is_relative = true;
 	}
-	if (FileAccess::file_exists(path))
-		return path;
-	return "";
+
+	UtilityFunctions::print("[GavaScript] Working on " + spec + ". Is Modules:" + (is_relative ? "False": "True"));
+	
+	// If we have a module root directory and this is a relative path, make it relative to the root
+	// if (!module_root_dir.is_empty() && is_relative) {
+	// 	if (spec.begins_with("./")) {
+	// 		spec = spec.substr(2); // Remove "./"
+	// 	}
+	// 	if (!module_root_dir.ends_with("/")) {
+	// 		spec = module_root_dir + "/" + spec;
+	// 	} else {
+	// 		spec = module_root_dir + spec;
+	// 	}
+	// 	UtilityFunctions::print("[GavaScript] Resolving relative to module root: " + spec);
+	// }
+
+	auto try_file_variants = [&](const String &base) -> String {
+		UtilityFunctions::print("[GavaScript] Try file: " + base);
+		// try exact
+		if (FileAccess::file_exists(base)) return base;
+		// try with .js
+		String js = base;
+		if (!js.ends_with(".js")) js += ".js";
+		if (FileAccess::file_exists(js)) return js;
+		// try as directory index.js
+		String idx = base;
+		if (!idx.ends_with("/")) idx += "/";
+		//TODO: 实现更复杂的node_modules文件导入情况
+		idx += "index.js";
+		if (FileAccess::file_exists(idx)) return idx;
+		return String();
+	};
+
+	// If it's a relative path, prefer resolving directly
+	if (is_relative) {
+		String resolved = try_file_variants(spec);
+		if (!resolved.is_empty()) {
+			resolve_path_cache.insert(file, resolved);
+			return resolved;
+		}
+		// If the import was relative but not found, return empty to signal failure
+		return String();
+	}
+
+	// Bare specifier (npm-style) handling.
+	// Split package name and optional subpath. Support scoped packages @scope/name
+	String pkg = spec;
+	String subpath = "";
+	int slash = -1;
+	if (pkg.begins_with("@")) {
+		// scoped: take @scope/name as package
+		int first = pkg.find("/");
+		if (first != -1) {
+			int second = pkg.find("/", first + 1);
+			if (second != -1) {
+				pkg = pkg.substr(0, second);
+				subpath = spec.substr(second + 1, spec.length() - (second + 1));
+			} else {
+				// whole spec is package
+				// leave subpath empty
+			}
+		}
+	} else {
+		slash = pkg.find("/");
+		if (slash != -1) {
+			pkg = pkg.substr(0, slash);
+			subpath = spec.substr(slash + 1, spec.length() - (slash + 1));
+		}
+	}
+
+	// If we have a module root directory, search for node_modules there first
+	if (!module_root_dir.is_empty()) {
+		String nm = module_root_dir;
+		if (!nm.ends_with("/")) nm += "/";
+		nm += "node_modules/" + pkg;
+
+		// Try node_modules in the module root directory
+		if (!subpath.is_empty()) {
+			String candidate = nm;
+			if (!candidate.ends_with("/")) candidate += "/";
+			candidate += subpath;
+			String resolved = try_file_variants(candidate);
+			if (!resolved.is_empty()) {
+				resolve_path_cache.insert(file, resolved);
+				return resolved;
+			}
+		}
+
+		// Try package root index.js and root + .js in module root
+		String resolved = try_file_variants(nm);
+		if (!resolved.is_empty()) {
+			resolve_path_cache.insert(file, resolved);
+			return resolved;
+		}
+
+		UtilityFunctions::print("[GavaScript] Module not found in root directory node_modules, falling back to search path");
+	}
+
+	// If not found in module root, search upward from current directory
+	// by trying '.', '..', '../..', etc.
+	const int MAX_UP = 12;
+	for (int i = 0; i < MAX_UP; ++i) {
+		String root = String();
+		if (i == 0) root = String(".");
+		else {
+			for (int k = 0; k < i; ++k) {
+				if (!root.is_empty() && !root.ends_with("/")) root += "/";
+				root += "..";
+			}
+		}
+
+		String nm = root;
+		if (!nm.ends_with("/")) nm += "/";
+		nm += "node_modules/" + pkg;
+
+		// If subpath provided, try node_modules/pkg/<subpath>
+		if (!subpath.is_empty()) {
+			String candidate = nm;
+			if (!candidate.ends_with("/")) candidate += "/";
+			candidate += subpath;
+			String resolved = try_file_variants(candidate);
+			if (!resolved.is_empty()) {
+				resolve_path_cache.insert(file, resolved);
+				return resolved;
+			}
+		}
+
+		// Try package root index.js and root + .js
+		String resolved = try_file_variants(nm);
+		if (!resolved.is_empty()) {
+			resolve_path_cache.insert(file, resolved);
+			return resolved;
+		}
+
+		// Try package as file (some packages publish single file named like pkg.js or subpath)
+		String candidate_file = root;
+		if (!candidate_file.ends_with("/")) candidate_file += "/";
+		candidate_file += "node_modules/" + spec; // spec may include subpath
+		resolved = try_file_variants(candidate_file);
+		if (!resolved.is_empty()) {
+			resolve_path_cache.insert(file, resolved);
+			return resolved;
+		}
+	}
+
+	// Not found
+	return String();
 }
 
 JSModuleDef *GavaScriptInstance::js_module_loader(JSContext *ctx, const char *module_name, void *opaque)
@@ -273,14 +430,14 @@ JSModuleDef *GavaScriptInstance::js_module_loader(JSContext *ctx, const char *mo
 	String resolving_file;
 	resolving_file.parse_utf8(module_name);
 
-	String file = resolve_module_file(resolving_file);
-	UtilityFunctions::print("Loading module: '" + resolving_file + "'.");
+	String file = thisInstance->resolve_module_file(resolving_file);
+	UtilityFunctions::print("[GavaScript] Loading module: '" + resolving_file + "'.");
 	ERR_FAIL_COND_V_MSG(file.is_empty(), NULL, "Failed to resolve module: '" + resolving_file + "'.");
 	resolve_path_cache.insert(resolving_file, file);
 
 
 	if (ModuleCache *ptr = thisInstance->module_cache.getptr(file)) {
-		UtilityFunctions::print("Loading cached module: '" + resolving_file + "'.");
+		UtilityFunctions::print("[GavaScript] Loading cached module: '" + resolving_file + "'.");
 		m = ptr->module;
 	}
 
@@ -290,8 +447,25 @@ JSModuleDef *GavaScriptInstance::js_module_loader(JSContext *ctx, const char *mo
 
 		String content = fileAccess->get_as_text();
 
-		// JSValue val = JS_Eval(ctx, content.utf8().get_data(), content.length(), file.utf8().get_data(), JS_EVAL_TYPE_MODULE);
+		// Wrap CommonJS modules with ES module syntax
+		// First try to detect if this is a CommonJS module by looking for module.exports or exports
+		bool is_cjs = content.contains("module.exports") || content.contains("exports.");
 		
+		String wrapped_content;
+		if (is_cjs) {
+			// Wrap the CommonJS module in ES module syntax
+			wrapped_content = String() +
+				"const module = { exports: {} };\n" +
+				"const exports = module.exports;\n" +
+				"(() => {\n" +
+				content +
+				"\n})();\n" +
+				"export default module.exports;\n" +
+				"export const __esModule = true;\n";
+			UtilityFunctions::print("[GavaScript] Converting CommonJS module to ES module");
+			content = wrapped_content;
+		}
+
 		/* compile the module */
         JSValue val = JS_Eval(ctx, content.utf8().get_data(), content.length(), module_name,
                            JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
@@ -321,7 +495,7 @@ JSModuleDef *GavaScriptInstance::js_module_loader(JSContext *ctx, const char *mo
 
 JSValue GavaScriptInstance::console_log(JSContext *ctx, JSValue this_val, int argc, JSValue *argv, int magic)
 {
-	// UtilityFunctions::print("Call console log");
+	// UtilityFunctions::print("[GavaScript] Call console log");
 	// TODO: Implement assert
 	if(magic == CONSOLE_ASSERT) return JS_UNDEFINED;
 	if(magic == CONSOLE_DEBUG) return JS_UNDEFINED;
@@ -338,7 +512,7 @@ JSValue GavaScriptInstance::console_log(JSContext *ctx, JSValue this_val, int ar
 	if(magic == CONSOLE_ERROR) 
 		UtilityFunctions::printerr(message);
 	else
-		UtilityFunctions::print(message);
+		UtilityFunctions::print("[GavaScript] " + message);
 	return JS_UNDEFINED;
 }
 }

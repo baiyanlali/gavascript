@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://jmtyipo0xqks"]
+
+[ext_resource type="Script" uid="uid://c23t6cx8hjhl5" path="res://gdscripts/node_module_test.gd" id="1_713k4"]
+
+[node name="node_module_test" type="Node2D"]
+script = ExtResource("1_713k4")
+
+[node name="GavaScriptInstance" type="GavaScriptInstance" parent="."]
