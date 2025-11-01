@@ -15,3 +15,5 @@ venv
 cache/
 .DS_Store
 .sconsign.dblite
+
+demo/bin/**
